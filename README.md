@@ -25,6 +25,7 @@ All display logic is handled host-side; the clock simply acts as a display matri
    * **UV Index:** Fetches current UV exposure levels (Open-Meteo).
    * **Sun Events:** Displays next sunrise or sunset time.
    * **Moon Phase:** Computes current moon illumination and phase locally, selecting one of 8 phase icons.
+   * **Mercury Retrograde:** Computes Mercury's retrograde status locally from orbital elements (no API), showing `Rn d` (retrograde) or `Dn d` (direct) with days until the next station.
    * **Pollen:** Fetches allergy index using the official **Google Pollen API**.
    * Scheduled via `cron`.
 
@@ -33,10 +34,11 @@ All display logic is handled host-side; the clock simply acts as a display matri
 ## File Structure
 
 ```text
-├── awtrix_env.py          # AQI, UV, Sun, Moon, and Google Pollen script
+├── awtrix_env.py          # AQI, UV, Sun, Moon, Mercury retrograde, and Google Pollen script
 ├── awtrix_weather.py      # NWS Weather & Humidity script
 ├── awtrix_pomo_server.py  # Always-on Pomodoro HTTP/MQTT server
 ├── awtrix-pomo.service    # User systemd service file definition
+├── make_icons.py          # Generates 8x8 GIF icons for /ICONS (pure stdlib)
 ├── .gitignore             # Git ignore configuration
 └── .env                   # Secret configuration file (git-ignored)
 ```
@@ -109,5 +111,7 @@ $ systemctl --user enable --now awtrix-pomo.service
 The scripts reference 8x8 GIF icons stored directly on the Awtrix 3 device (without extensions). Upload these icons via the Awtrix web portal file browser under `/ICONS`:
 
 * **Weather:** `sun`, `cloud`, `rain`, `storm`, `snow`, `fog`, `humidity`.
-* **Environment:** `aqi`, `pollen`, `sun` (used for UV), `sunrise`, `sunset`.
+* **Environment:** `aqi`, `pollen`, `sun` (used for UV), `sunrise`, `sunset`, `mercury`.
 * **Moon Phases:** `moon_new`, `moon_wxc`, `moon_fq`, `moon_wxg`, `moon_full`, `moon_wng`, `moon_lq`, `moon_wnc`.
+
+All icons (including `mercury`) can be regenerated with `python3 make_icons.py`, which writes 8x8 GIFs into `icons/` using only the standard library (no Pillow needed).

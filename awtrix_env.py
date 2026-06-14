@@ -52,6 +52,7 @@ GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "your_google_api_key_here")
 # Icon filenames in the device /ICONS folder.
 IC_AQI, IC_POLLEN, IC_UV = "aqi", "pollen", "sun"
 IC_SUNRISE, IC_SUNSET = "sunrise", "sunset"
+IC_MERCURY = "mercury"
 # Moon phase icons, ordered new -> ... -> full -> ... (one eighth each).
 MOON_ICONS = ["moon_new", "moon_wxc", "moon_fq", "moon_wxg",
               "moon_full", "moon_wng", "moon_lq", "moon_wnc"]
@@ -188,6 +189,69 @@ def get_moon():
             "scroll": False, "duration": DURATION, "lifetime": LIFETIME}
 
 
+# --- Mercury retrograde -----------------------------------------------------
+# Low-precision Keplerian orbital elements (Paul Schlyter's formulas), good to
+# roughly a degree for decades around J2000 -- plenty for spotting retrograde
+# stations, which only need the *sign* of Mercury's apparent motion.
+_EPOCH = datetime(2000, 1, 1, tzinfo=timezone.utc)
+_SUN_ELEMENTS = dict(N=0.0, i=0.0, w=282.9404, a=1.000000,
+                      e=0.016709, M0=356.0470, M_rate=0.9856002585)
+_MERCURY_ELEMENTS = dict(N=48.3313, i=7.0047, w=29.1241, a=0.387098,
+                          e=0.205635, M0=168.6562, M_rate=4.0923344368)
+
+
+def _kepler_E(M_rad, e):
+    """Solve Kepler's equation M = E - e*sin(E) for E, in radians."""
+    E = M_rad + e * math.sin(M_rad) * (1.0 + e * math.cos(M_rad))
+    for _ in range(8):
+        dE = (E - e * math.sin(E) - M_rad) / (1 - e * math.cos(E))
+        E -= dE
+        if abs(dE) < 1e-9:
+            break
+    return E
+
+
+def _heliocentric_xy(d, N, i, w, a, e, M0, M_rate):
+    """Heliocentric ecliptic x,y (AU) at d days since epoch. z is dropped --
+    it only affects ecliptic latitude, not the longitude used here."""
+    M = math.radians((M0 + M_rate * d) % 360.0)
+    E = _kepler_E(M, e)
+    xv = a * (math.cos(E) - e)
+    yv = a * math.sqrt(1 - e * e) * math.sin(E)
+    v, r = math.atan2(yv, xv), math.hypot(xv, yv)
+    N, i, w = math.radians(N), math.radians(i), math.radians(w)
+    vw = v + w
+    x = r * (math.cos(N) * math.cos(vw) - math.sin(N) * math.sin(vw) * math.cos(i))
+    y = r * (math.sin(N) * math.cos(vw) + math.cos(N) * math.sin(vw) * math.cos(i))
+    return x, y
+
+
+def _mercury_longitude(d):
+    """Mercury's geocentric ecliptic longitude (degrees) at d days since epoch."""
+    xs, ys = _heliocentric_xy(d, **_SUN_ELEMENTS)       # Sun as seen from Earth
+    xm, ym = _heliocentric_xy(d, **_MERCURY_ELEMENTS)   # Mercury, heliocentric
+    return math.degrees(math.atan2(ym + ys, xm + xs)) % 360.0
+
+
+def _mercury_retrograde(d):
+    """True if Mercury's geocentric longitude is currently decreasing."""
+    delta = _mercury_longitude(d + 0.5) - _mercury_longitude(d - 0.5)
+    return ((delta + 180) % 360) - 180 < 0
+
+
+def get_mercury():
+    """Mercury retrograde status, plus days until the next station (when the
+    direction flips). Computed locally from orbital elements -- no API,
+    same spirit as get_moon()."""
+    d = (datetime.now(timezone.utc) - _EPOCH).total_seconds() / 86400.0
+    retro = _mercury_retrograde(d)
+    days = next((n for n in range(1, 130)
+                  if _mercury_retrograde(d + n) != retro), None)
+    text = f"{'R' if retro else 'D'}{days}d" if days else ("RETRO" if retro else "DIRECT")
+    return {"text": text, "icon": IC_MERCURY, "color": RED if retro else GREEN,
+            "scroll": False, "duration": DURATION, "lifetime": LIFETIME}
+
+
 # --- MQTT publish ---------------------------------------------------------
 def publish(apps):
     """apps: dict of app_name -> payload dict (None values skipped)."""
@@ -226,6 +290,7 @@ if __name__ == "__main__":
     aqi_app = safe(get_aqi, "AQI")
     pollen_app = safe(get_pollen, "Pollen")
     moon_app = safe(get_moon, "Moon")
+    mercury_app = safe(get_mercury, "Mercury")
     uv_app, sun_app = safe(get_uv_and_sun, "UV/Sun") or (None, None)
 
     publish({
@@ -234,4 +299,5 @@ if __name__ == "__main__":
         "uv": uv_app,
         "sun": sun_app,
         "moon": moon_app,
+        "mercury": mercury_app,
     })

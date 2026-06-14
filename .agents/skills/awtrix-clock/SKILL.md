@@ -27,13 +27,14 @@ it's sent.
 
 - `awtrix_weather.py` — NWS hourly forecast -> `weather_temp`, `weather_hum`
   apps. Cron every 15 min. Condition->icon mapping in `CONDITION_RULES`.
-- `awtrix_env.py` — Open-Meteo + pollen.com + computed moon -> `aqi`, `pollen`,
-  `uv`, `sun`, `moon` apps. Cron hourly.
+- `awtrix_env.py` — Open-Meteo + pollen.com + computed moon/Mercury -> `aqi`,
+  `pollen`, `uv`, `sun`, `moon`, `mercury` apps. Cron hourly.
 - `awtrix_pomo_server.py` — always-on HTTP server (`127.0.0.1:8088`) serving a
   mobile web page that triggers a pomodoro countdown. Runs as a user systemd
   service (`awtrix-pomo.service`); exposed via Cloudflare Tunnel + Access.
-- `make_icons.py` — regenerates all 8x8 GIF icons from char grids + the moon
-  phases. Output icons must be uploaded to the device `/ICONS` folder.
+- `make_icons.py` — generates 8x8 GIF icons from pixel-index grids (pure
+  stdlib, no Pillow). Output icons must be uploaded to the device `/ICONS`
+  folder. Add new icons to its `ICONS` dict and re-run.
 
 ## CRITICAL firmware gotchas (the source of most past bugs)
 
@@ -78,6 +79,12 @@ it's sent.
   Google Pollen API (needs key) — one-function swap in `get_pollen`.
 - **Moon:** computed locally from date (synodic cycle); no API. Phase selects
   one of 8 `moon_*.gif` icons.
+- **Mercury retrograde:** computed locally from low-precision Keplerian
+  orbital elements (Earth + Mercury); no API. Determines retrograde by the
+  sign of the change in Mercury's geocentric ecliptic longitude, and finds
+  the next station by scanning forward day-by-day for a sign flip. Text is
+  `Rn d`/`Dn d` (days to next station); color is red when retrograde, green
+  when direct. Single `mercury.gif` icon (shaded-sphere) for both states.
 
 ## Deploy / common operations
 
