@@ -84,7 +84,9 @@ it's sent.
   sign of the change in Mercury's geocentric ecliptic longitude, and finds
   the next station by scanning forward day-by-day for a sign flip. Text is
   `Rn d`/`Dn d` (days to next station); color is red when retrograde, green
-  when direct. Single `mercury.gif` icon (shaded-sphere) for both states.
+  when direct. Icon swaps between `mercury.gif` (tan/grey, direct) and
+  `mercury_rx.gif` (red/orange, retrograde) -- same shaded-sphere shape,
+  different palette via make_icons.py.
 
 ## Deploy / common operations
 

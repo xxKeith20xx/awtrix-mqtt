@@ -86,8 +86,10 @@ def write_gif(path, width, height, indices, palette):
 
 
 # --- Icon definitions -------------------------------------------------------
-# Mercury: a shaded sphere (sunlit/tan vs. shadowed/grey-brown half), like a
-# small cratered planet. 0=sunlit, 1/2=shadow, 3=black (unlit pixel).
+# Mercury: a shaded sphere (sunlit vs. shadowed half), like a small cratered
+# planet. 0=sunlit, 1/2=shadow, 3=black (unlit pixel). Same shape for both
+# states so it's still recognizable as "Mercury"; only the palette changes:
+# calm tan/grey when direct, red/orange "alert" tones when retrograde.
 MERCURY_GRID = [
     3, 3, 0, 0, 1, 1, 3, 3,
     3, 0, 0, 0, 1, 1, 1, 3,
@@ -99,9 +101,11 @@ MERCURY_GRID = [
     3, 3, 0, 0, 1, 1, 3, 3,
 ]
 MERCURY_PALETTE = [(200, 185, 165), (110, 100, 95), (110, 100, 95), (0, 0, 0)]
+MERCURY_RX_PALETTE = [(235, 110, 60), (150, 45, 35), (150, 45, 35), (0, 0, 0)]
 
 ICONS = {
     "mercury": (MERCURY_GRID, MERCURY_PALETTE),
+    "mercury_rx": (MERCURY_GRID, MERCURY_RX_PALETTE),
 }
 
 

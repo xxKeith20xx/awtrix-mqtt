@@ -111,7 +111,7 @@ $ systemctl --user enable --now awtrix-pomo.service
 The scripts reference 8x8 GIF icons stored directly on the Awtrix 3 device (without extensions). Upload these icons via the Awtrix web portal file browser under `/ICONS`:
 
 * **Weather:** `sun`, `cloud`, `rain`, `storm`, `snow`, `fog`, `humidity`.
-* **Environment:** `aqi`, `pollen`, `sun` (used for UV), `sunrise`, `sunset`, `mercury`.
+* **Environment:** `aqi`, `pollen`, `sun` (used for UV), `sunrise`, `sunset`, `mercury` (direct), `mercury_rx` (retrograde).
 * **Moon Phases:** `moon_new`, `moon_wxc`, `moon_fq`, `moon_wxg`, `moon_full`, `moon_wng`, `moon_lq`, `moon_wnc`.
 
-All icons (including `mercury`) can be regenerated with `python3 make_icons.py`, which writes 8x8 GIFs into `icons/` using only the standard library (no Pillow needed).
+All icons (including `mercury`/`mercury_rx`) can be regenerated with `python3 make_icons.py`, which writes 8x8 GIFs into `icons/` using only the standard library (no Pillow needed).

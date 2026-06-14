@@ -52,7 +52,7 @@ GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "your_google_api_key_here")
 # Icon filenames in the device /ICONS folder.
 IC_AQI, IC_POLLEN, IC_UV = "aqi", "pollen", "sun"
 IC_SUNRISE, IC_SUNSET = "sunrise", "sunset"
-IC_MERCURY = "mercury"
+IC_MERCURY, IC_MERCURY_RX = "mercury", "mercury_rx"
 # Moon phase icons, ordered new -> ... -> full -> ... (one eighth each).
 MOON_ICONS = ["moon_new", "moon_wxc", "moon_fq", "moon_wxg",
               "moon_full", "moon_wng", "moon_lq", "moon_wnc"]
@@ -248,7 +248,8 @@ def get_mercury():
     days = next((n for n in range(1, 130)
                   if _mercury_retrograde(d + n) != retro), None)
     text = f"{'R' if retro else 'D'}{days}d" if days else ("RETRO" if retro else "DIRECT")
-    return {"text": text, "icon": IC_MERCURY, "color": RED if retro else GREEN,
+    icon = IC_MERCURY_RX if retro else IC_MERCURY
+    return {"text": text, "icon": icon, "color": RED if retro else GREEN,
             "scroll": False, "duration": DURATION, "lifetime": LIFETIME}
 
 
