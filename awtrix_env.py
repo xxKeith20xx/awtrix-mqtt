@@ -1,10 +1,14 @@
 """
 Push environmental data to Awtrix 3 as custom apps over MQTT:
-  aqi    - US Air Quality Index (Open-Meteo, no key)
-  pollen - allergy index 0-12 for the ZIP (pollen.com unofficial; fails soft)
-  uv     - current UV index (Open-Meteo, no key)
-  sun    - next sun event (sunrise or sunset) with time (Open-Meteo)
-  moon   - illumination % and phase, computed locally (no API)
+  aqi      - US Air Quality Index (Open-Meteo, no key)
+  pollen   - allergy index 0-12 for the ZIP (pollen.com unofficial; fails soft)
+  uv       - current UV index (Open-Meteo, no key)
+  sun      - next sun event (sunrise or sunset) with time (Open-Meteo)
+  noon     - solar noon time (midpoint of sunrise/sunset, Open-Meteo)
+  daylen   - day length in hours and minutes (Open-Meteo)
+  compass  - sun azimuth as compass bearing, e.g. ENE (computed locally)
+  elev     - sun elevation as day-progress %, 0 at horizon, 100 at peak (local)
+  moon     - illumination % and phase, computed locally (no API)
 
 Each value is color-coded by severity so it's glanceable. Designed to run
 hourly from cron. Any single source failing only drops its own app; the
@@ -13,7 +17,7 @@ others still publish, and retained messages keep the last good value.
 import json
 import math
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import requests
 import paho.mqtt.client as mqtt
@@ -53,12 +57,14 @@ GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "your_google_api_key_here")
 IC_AQI, IC_POLLEN, IC_UV = "aqi", "pollen", "sun"
 IC_SUNRISE, IC_SUNSET = "sunrise", "sunset"
 IC_MERCURY, IC_MERCURY_RX = "mercury", "mercury_rx"
+IC_NOON, IC_DAYLEN = "solar_noon", "daylight"
+IC_COMPASS, IC_ELEV = "compass", "elevation"
 # Moon phase icons, ordered new -> ... -> full -> ... (one eighth each).
 MOON_ICONS = ["moon_new", "moon_wxc", "moon_fq", "moon_wxg",
               "moon_full", "moon_wng", "moon_lq", "moon_wnc"]
 
 LIFETIME = 4500  # ~75 min; expires if the hourly job stops (cron is hourly)
-DURATION = 5     # seconds each app shows (override of the 10s global app time)
+DURATION = 2     # seconds each app shows (override of the 10s global app time)
 
 
 # --- Color helpers (return [r,g,b]) ---------------------------------------
@@ -101,8 +107,8 @@ def get_aqi():
             "scroll": False, "duration": DURATION, "lifetime": LIFETIME}
 
 
-def get_uv_and_sun():
-    """One call returns both UV (current) and today's/tomorrow's sun times."""
+def get_sun_apps():
+    """One call returns UV, next sun event, solar noon, and day length."""
     r = requests.get(
         "https://api.open-meteo.com/v1/forecast",
         params={"latitude": LAT, "longitude": LON, "current": "uv_index",
@@ -111,14 +117,14 @@ def get_uv_and_sun():
     r.raise_for_status()
     d = r.json()
 
-    uv_app = None
+    apps = {}
+
     uv = d.get("current", {}).get("uv_index")
     if uv is not None:
         uv = max(0, round(uv))
-        uv_app = {"text": f"UV{uv}", "icon": IC_UV, "color": uv_color(uv),
-                  "scroll": False, "duration": DURATION, "lifetime": LIFETIME}
+        apps["uv"] = {"text": f"UV{uv}", "icon": IC_UV, "color": uv_color(uv),
+                       "scroll": False, "duration": DURATION, "lifetime": LIFETIME}
 
-    sun_app = None
     daily = d.get("daily", {})
     rises, sets = daily.get("sunrise", []), daily.get("sunset", [])
     if rises and sets:
@@ -139,10 +145,22 @@ def get_uv_and_sun():
             label, icon = hhmm(parse(rises[1])), IC_SUNRISE
         else:
             label, icon = hhmm(sr0), IC_SUNRISE
-        sun_app = {"text": label, "icon": icon, "color": WHITE,
-                   "scroll": False, "duration": DURATION, "lifetime": LIFETIME}
+        apps["sun"] = {"text": label, "icon": icon, "color": WHITE,
+                       "scroll": False, "duration": DURATION, "lifetime": LIFETIME}
 
-    return uv_app, sun_app
+        noon = sr0 + (ss0 - sr0) / 2
+        apps["noon"] = {"text": hhmm(noon), "icon": IC_NOON,
+                        "color": [255, 250, 200],
+                        "scroll": False, "duration": DURATION, "lifetime": LIFETIME}
+
+        daylen = ss0 - sr0
+        hours = int(daylen.total_seconds() // 3600)
+        minutes = int((daylen.total_seconds() % 3600) // 60)
+        apps["daylen"] = {"text": f"{hours}h{minutes:02d}m", "icon": IC_DAYLEN,
+                          "color": [255, 220, 100],
+                          "scroll": False, "duration": DURATION, "lifetime": LIFETIME}
+
+    return apps
 
 
 def get_pollen():
@@ -253,6 +271,66 @@ def get_mercury():
             "scroll": False, "duration": DURATION, "lifetime": LIFETIME}
 
 
+# --- Sun position (local computation) ----------------------------------------
+_COMPASS_POINTS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
+                   "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
+
+
+def _solar_position(lat, lon):
+    """Sun azimuth (0=N clockwise), elevation, and peak elevation for today.
+    Low-precision NOAA/Meeus formulas, good to ~1 degree. No network."""
+    now = datetime.now(timezone.utc)
+    n = (now - datetime(2000, 1, 1, 12, 0, tzinfo=timezone.utc)).total_seconds() / 86400.0
+
+    L = (280.460 + 0.9856474 * n) % 360.0
+    g_rad = math.radians((357.528 + 0.9856003 * n) % 360.0)
+    ecl_lon = math.radians(L + 1.915 * math.sin(g_rad) + 0.020 * math.sin(2 * g_rad))
+
+    obliq = math.radians(23.439 - 0.0000004 * n)
+    dec = math.asin(math.sin(obliq) * math.sin(ecl_lon))
+    ra = math.atan2(math.cos(obliq) * math.sin(ecl_lon), math.cos(ecl_lon))
+
+    gmst = math.radians((280.46061837 + 360.98564736629 * n) % 360.0)
+    ha = gmst + math.radians(lon) - ra
+
+    lat_r = math.radians(lat)
+    elev = math.degrees(math.asin(
+        math.sin(lat_r) * math.sin(dec)
+        + math.cos(lat_r) * math.cos(dec) * math.cos(ha)))
+    az = math.degrees(math.atan2(
+        -math.sin(ha),
+        math.cos(lat_r) * math.tan(dec) - math.sin(lat_r) * math.cos(ha))) % 360.0
+    peak = max(0.0, 90.0 - abs(lat - math.degrees(dec)))
+
+    return az, elev, peak
+
+
+def _elevation_color(pct):
+    if pct < 25:
+        return [255, 140, 50]
+    if pct < 50:
+        return [255, 200, 50]
+    if pct < 75:
+        return [255, 240, 100]
+    return [255, 255, 200]
+
+
+def get_sun_position():
+    """Compass bearing and elevation progress. No network."""
+    az, elev, peak = _solar_position(LAT, LON)
+    if elev < 0:
+        return {}
+    compass = _COMPASS_POINTS[int((az + 11.25) % 360 / 22.5) % 16]
+    pct = int(round(elev / peak * 100)) if peak > 0 else 0
+    pct = min(pct, 100)
+    return {
+        "compass": {"text": compass, "icon": IC_COMPASS, "color": WHITE,
+                    "scroll": False, "duration": DURATION, "lifetime": LIFETIME},
+        "elev": {"text": f"{pct}%", "icon": IC_ELEV, "color": _elevation_color(pct),
+                 "scroll": False, "duration": DURATION, "lifetime": LIFETIME},
+    }
+
+
 # --- MQTT publish ---------------------------------------------------------
 def publish(apps):
     """apps: dict of app_name -> payload dict (None values skipped)."""
@@ -292,13 +370,14 @@ if __name__ == "__main__":
     pollen_app = safe(get_pollen, "Pollen")
     moon_app = safe(get_moon, "Moon")
     mercury_app = safe(get_mercury, "Mercury")
-    uv_app, sun_app = safe(get_uv_and_sun, "UV/Sun") or (None, None)
+    sun_apps = safe(get_sun_apps, "Sun apps") or {}
+    pos_apps = safe(get_sun_position, "Sun position") or {}
 
     publish({
         "aqi": aqi_app,
         "pollen": pollen_app,
-        "uv": uv_app,
-        "sun": sun_app,
+        **sun_apps,
+        **pos_apps,
         "moon": moon_app,
         "mercury": mercury_app,
     })

@@ -120,7 +120,7 @@ def publish_weather_data(temp_text, weather_icon, hum_text, hum_icon):
         "icon": weather_icon,
         "color": [255, 255, 255],
         "scroll": False,
-        "duration": 5,
+        "duration": 2,
         "lifetime": 1200
     }
 
@@ -129,7 +129,7 @@ def publish_weather_data(temp_text, weather_icon, hum_text, hum_icon):
         "icon": hum_icon,
         "color": [255, 255, 255],
         "scroll": False,
-        "duration": 5,
+        "duration": 2,
         "lifetime": 1200
     }
 
