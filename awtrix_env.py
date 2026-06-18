@@ -103,7 +103,7 @@ def get_aqi():
     if v is None:
         return None
     v = int(round(v))
-    return {"text": str(v), "icon": IC_AQI, "color": aqi_color(v),
+    return {"text": str(v), "icon": IC_AQI, "color": aqi_color(v), "pos": 6,
             "noScroll": True, "duration": DURATION, "lifetime": LIFETIME}
 
 
@@ -122,7 +122,7 @@ def get_sun_apps():
     uv = d.get("current", {}).get("uv_index")
     if uv is not None:
         uv = max(0, round(uv))
-        apps["uv"] = {"text": f"UV{uv}", "icon": IC_UV, "color": uv_color(uv),
+        apps["uv"] = {"text": f"UV{uv}", "icon": IC_UV, "color": uv_color(uv), "pos": 8,
                        "noScroll": True, "duration": DURATION, "lifetime": LIFETIME}
 
     daily = d.get("daily", {})
@@ -145,19 +145,19 @@ def get_sun_apps():
             label, icon = hhmm(parse(rises[1])), IC_SUNRISE
         else:
             label, icon = hhmm(sr0), IC_SUNRISE
-        apps["sun"] = {"text": label, "icon": icon, "color": WHITE,
+        apps["sun"] = {"text": label, "icon": icon, "color": WHITE, "pos": 9,
                        "noScroll": True, "duration": DURATION, "lifetime": LIFETIME}
 
         noon = sr0 + (ss0 - sr0) / 2
         apps["noon"] = {"text": hhmm(noon), "icon": IC_NOON,
-                        "color": [255, 250, 200],
+                        "color": [255, 250, 200], "pos": 10,
                         "noScroll": True, "duration": DURATION, "lifetime": LIFETIME}
 
         daylen = ss0 - sr0
         hours = int(daylen.total_seconds() // 3600)
         minutes = int((daylen.total_seconds() % 3600) // 60)
         apps["daylen"] = {"text": f"{hours}h{minutes:02d}m", "icon": IC_DAYLEN,
-                          "color": [255, 220, 100],
+                          "color": [255, 220, 100], "textOffset": -2, "pos": 11,
                           "noScroll": True, "duration": DURATION, "lifetime": LIFETIME}
 
     return apps
@@ -190,7 +190,7 @@ def get_pollen():
             if val is not None:
                 max_val = max(max_val, float(val))
     return {"text": f"{max_val:.1f}", "icon": IC_POLLEN, "color": pollen_color(max_val),
-            "noScroll": True, "duration": DURATION, "lifetime": LIFETIME}
+            "pos": 7, "noScroll": True, "duration": DURATION, "lifetime": LIFETIME}
 
 
 def get_moon():
@@ -203,7 +203,7 @@ def get_moon():
     illum = round((1 - math.cos(2 * math.pi * phase)) * 50)  # 0..100 %
     # Map phase to one of 8 equal buckets centered on new/quarter/full/etc.
     icon = MOON_ICONS[int(((phase + 0.0625) % 1.0) * 8) % 8]
-    return {"text": f"{illum}%", "icon": icon, "color": [200, 200, 170],
+    return {"text": f"{illum}%", "icon": icon, "color": [200, 200, 170], "pos": 14,
             "noScroll": True, "duration": DURATION, "lifetime": LIFETIME}
 
 
@@ -265,10 +265,15 @@ def get_mercury():
     retro = _mercury_retrograde(d)
     days = next((n for n in range(1, 130)
                   if _mercury_retrograde(d + n) != retro), None)
-    text = f"{'R' if retro else 'D'}{days}d" if days else ("RETRO" if retro else "DIRECT")
+    # Direction (direct/retrograde) is shown by the icon + color, so the text is
+    # just days-until-next-station. Avoids a leading "D"/"R" that the LED font
+    # renders indistinguishably from the trailing "d" in days.
+    text = f"{days}d" if days else ("RETRO" if retro else "DIRECT")
     icon = IC_MERCURY_RX if retro else IC_MERCURY
-    return {"text": text, "icon": icon, "color": RED if retro else GREEN,
-            "noScroll": True, "duration": DURATION, "lifetime": LIFETIME}
+    # uppercase:2 = "show as sent" so the lowercase "d" in "13d" actually renders
+    # lowercase (Awtrix forces uppercase globally by default).
+    return {"text": text, "icon": icon, "color": RED if retro else GREEN, "pos": 15,
+            "uppercase": 2, "noScroll": True, "duration": DURATION, "lifetime": LIFETIME}
 
 
 # --- Sun position (local computation) ----------------------------------------
@@ -324,9 +329,9 @@ def get_sun_position():
     pct = int(round(elev / peak * 100)) if peak > 0 else 0
     pct = min(pct, 100)
     return {
-        "compass": {"text": compass, "icon": IC_COMPASS, "color": WHITE,
+        "compass": {"text": compass, "icon": IC_COMPASS, "color": WHITE, "pos": 12,
                     "noScroll": True, "duration": DURATION, "lifetime": LIFETIME},
-        "elev": {"text": f"{pct}%", "icon": IC_ELEV, "color": _elevation_color(pct),
+        "elev": {"text": f"{pct}%", "icon": IC_ELEV, "color": _elevation_color(pct), "pos": 13,
                  "noScroll": True, "duration": DURATION, "lifetime": LIFETIME},
     }
 

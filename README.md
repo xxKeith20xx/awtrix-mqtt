@@ -16,9 +16,15 @@ All display logic is handled host-side; the clock simply acts as a display matri
 
 2. **NWS Hourly Weather (`awtrix_weather.py`):**
    * Queries the National Weather Service (NWS) API for hourly forecasts.
-   * Displays local temperature and humidity.
+   * Displays temperature, feels-like (heat index / wind chill), humidity, dew point, wind (direction + speed), and next-hour rain probability.
    * Maps current conditions (storms, snow, rain, clouds, sun) to specific custom icons stored on the clock.
    * Scheduled via `cron`.
+
+4. **Awtrix Dashboard (`awtrix_dashboard.py`):**
+   * Serves an always-on auto-refreshing web page (port `8089`) showing every metric the clock displays, grouped by Weather / Air Quality / Sun / Sky.
+   * Reuses the exact data functions and 8x8 icons from the other scripts, so the page always matches the clock.
+   * Refetches data every 60 seconds via a background thread; intended to be exposed through a Cloudflare Tunnel.
+   * Runs as a user-level `systemd` service.
 
 3. **Environmental Metrics (`awtrix_env.py`):**
    * **AQI:** Fetches the US Air Quality Index (Open-Meteo).
@@ -29,7 +35,7 @@ All display logic is handled host-side; the clock simply acts as a display matri
    * **Compass:** Sun's current azimuth as a 16-point compass direction, e.g. ENE (computed locally).
    * **Elevation:** Sun's height as a day-progress percentage — 0% at horizon, 100% at peak. Low = light flooding through windows, high = overhead. Skips at night (computed locally).
    * **Moon Phase:** Computes current moon illumination and phase locally, selecting one of 8 phase icons.
-   * **Mercury Retrograde:** Computes Mercury's retrograde status locally from orbital elements (no API), showing `Rn d` (retrograde) or `Dn d` (direct) with days until the next station.
+   * **Mercury Retrograde:** Computes Mercury's retrograde status locally from orbital elements (no API), showing days until the next station (e.g. `13d`); the icon and color (green direct / red retrograde) convey the direction.
    * **Pollen:** Fetches allergy index using the official **Google Pollen API**.
    * Scheduled via `cron`.
 
@@ -37,14 +43,18 @@ All display logic is handled host-side; the clock simply acts as a display matri
 
 ## App Quick Reference
 
-All 12 apps rotate on the clock (2 seconds each, ~24 second full cycle). Colors shift by severity — green is calm, red/purple means pay attention.
+All 16 apps rotate on the clock (3 seconds each). Display order is fixed with the `pos` field (Awtrix shows apps in receive order, not alphabetically). Colors shift by severity — green is calm, red/purple means pay attention.
 
 ### Weather Apps (every 15 min)
 
 | App | Example | Meaning |
 |-----|---------|---------|
 | **temp** | `84°` | Current temperature from NWS, icon matches conditions (sun/cloud/rain/etc.) |
+| **feels** | `88°` | Feels-like: NWS heat index (hot+humid) or wind chill (cold+windy) |
+| **wind** | `S5` | Wind direction + speed in mph (e.g. from the South at 5 mph) |
+| **rain** | `20%` | Probability of precipitation over the next hour |
 | **humidity** | `62%` | Current relative humidity |
+| **dew** | `61°` | Dew point. Under 55° dry, 60s sticky, 70+ muggy |
 
 ### Environmental Apps (hourly)
 
@@ -59,14 +69,14 @@ All 12 apps rotate on the clock (2 seconds each, ~24 second full cycle). Colors 
 | **compass** | `ENE` | Which compass direction the sun is in right now (16-point) |
 | **elev** | `45%` | How high the sun is — 0% at horizon, 100% at peak. Low % = light floods windows. Skips at night |
 | **moon** | `73%` | Moon illumination with a phase icon (new → full → new) |
-| **mercury** | `D45d` | Mercury status: D = direct (normal), R = retrograde. Number = days until it switches |
+| **mercury** | `13d` | Days until Mercury's next station; icon + color show direct (green) vs retrograde (red) |
 
 ### Data Sources
 
 | Source | Apps | Needs API key? |
 |--------|------|----------------|
 | Open-Meteo | aqi, uv, sun, noon, daylen | No |
-| NWS | temp, humidity | No (needs contact email) |
+| NWS | temp, feels, wind, rain, humidity, dew | No (needs contact email) |
 | Google Pollen API | pollen | Yes |
 | Local computation | compass, elev, moon, mercury | No (pure math) |
 
@@ -75,14 +85,16 @@ All 12 apps rotate on the clock (2 seconds each, ~24 second full cycle). Colors 
 ## File Structure
 
 ```text
-├── awtrix_env.py          # AQI, UV, Sun, Noon, Day Length, Compass, Elevation, Moon, Mercury, Pollen
-├── awtrix_weather.py      # NWS Weather & Humidity script
-├── awtrix_pomo_server.py  # Always-on Pomodoro HTTP/MQTT server
-├── awtrix-pomo.service    # User systemd service file definition
-├── make_icons.py          # Generates 8x8 GIF icons for /ICONS (pure stdlib)
-├── icons/                 # Generated icon GIFs (upload to device /ICONS)
-├── .gitignore             # Git ignore configuration
-└── .env                   # Secret configuration file (git-ignored)
+├── awtrix_env.py            # AQI, UV, Sun, Noon, Day Length, Compass, Elevation, Moon, Mercury, Pollen
+├── awtrix_weather.py        # NWS temp, feels-like, wind, rain, humidity, dew point
+├── awtrix_pomo_server.py    # Always-on Pomodoro HTTP/MQTT server
+├── awtrix_dashboard.py      # Always-on web dashboard (port 8089) of all metrics
+├── awtrix-pomo.service      # User systemd service for the Pomodoro server
+├── awtrix-dashboard.service # User systemd service for the dashboard
+├── make_icons.py            # Generates 8x8 GIF icons for /ICONS (pure stdlib)
+├── icons/                   # Generated icon GIFs (upload to device /ICONS)
+├── .gitignore               # Git ignore configuration
+└── .env                     # Secret configuration file (git-ignored)
 ```
 
 ---
@@ -146,16 +158,29 @@ $ systemctl --user enable --now awtrix-pomo.service
 
 *Access the Pomodoro web interface locally at: `http://localhost:8088`.*
 
+### 3. Dashboard Server (Systemd User Service)
+Link and enable the dashboard service the same way:
+
+```bash
+$ ln -s ~/git/mqtt/awtrix-dashboard.service ~/.config/systemd/user/awtrix-dashboard.service
+$ systemctl --user daemon-reload
+$ systemctl --user enable --now awtrix-dashboard.service
+```
+
+*Access the dashboard locally at `http://localhost:8089`, or expose it through a Cloudflare Tunnel (e.g. `pomo.keith20.dev`-style hostname) pointed at port 8089.*
+
 ---
 
 ## Custom Icons
 
 The scripts reference 8x8 GIF icons stored directly on the Awtrix 3 device (without extensions). Upload these icons via the Awtrix web portal file browser under `/ICONS`:
 
-* **Weather:** `sun`, `cloud`, `rain`, `storm`, `snow`, `fog`, `humidity`.
+* **Weather:** `sun`, `cloud`, `rain`, `storm`, `snow`, `fog`, `humidity`, `feels`, `dewpoint`, `wind`, `umbrella`.
 * **Environment:** `aqi`, `pollen`, `sun` (used for UV), `sunrise`, `sunset`.
 * **Sun Position:** `solar_noon`, `daylight`, `compass`, `elevation`.
 * **Mercury:** `mercury` (direct), `mercury_rx` (retrograde).
 * **Moon Phases:** `moon_new`, `moon_wxc`, `moon_fq`, `moon_wxg`, `moon_full`, `moon_wng`, `moon_lq`, `moon_wnc`.
 
-Icons generated by `make_icons.py`: `mercury`, `mercury_rx`, `solar_noon`, `daylight`, `compass`, `elevation`. Run `python3 make_icons.py` to regenerate into `icons/` (pure stdlib, no Pillow needed). The remaining icons (weather, moon, aqi, pollen, etc.) are hand-made and uploaded manually.
+Icons generated by `make_icons.py`: `mercury`, `mercury_rx`, `solar_noon`, `daylight`, `compass`, `elevation`, `feels`, `dewpoint`, `wind`, `umbrella`. Run `python3 make_icons.py` to regenerate into `icons/` (pure stdlib, no Pillow needed). The remaining icons (weather, moon, aqi, pollen, etc.) are hand-made and uploaded manually.
+
+> **Text case note:** Awtrix forces uppercase globally by default. Apps that need true lowercase (e.g. the `13d` mercury readout) set `"uppercase": 2` ("show as sent") in their payload.

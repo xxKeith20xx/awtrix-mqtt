@@ -1,0 +1,21 @@
+[Unit]
+Description=Awtrix Dashboard web view
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/bin/python3 %h/git/mqtt/awtrix_dashboard.py
+WorkingDirectory=%h/git/mqtt
+Restart=on-failure
+RestartSec=3
+
+# Hardening — safe because the script only reads its own code and icons,
+# opens an inbound TCP socket, and makes outbound HTTPS calls for data.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+RestrictAddressFamilies=AF_INET AF_INET6
+
+[Install]
+WantedBy=default.target

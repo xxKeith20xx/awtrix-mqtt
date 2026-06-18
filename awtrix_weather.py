@@ -50,6 +50,8 @@ ICON_FOG = "fog"
 ICON_HUMIDITY = "humidity"
 ICON_FEELS = "feels"
 ICON_DEW = "dewpoint"
+ICON_WIND = "wind"
+ICON_RAINPROB = "umbrella"
 ICON_FALLBACK = ICON_CLEAR  # used only for genuinely unrecognized conditions
 
 # Condition -> ordered icon candidates. Rules are checked top to bottom and the
@@ -85,7 +87,7 @@ REQUIRED_ICONS = {
     icon for icon in (
         ICON_CLEAR, ICON_CLOUD, ICON_RAIN, ICON_STORM,
         ICON_SNOW, ICON_FOG, ICON_HUMIDITY, ICON_FEELS,
-        ICON_DEW, ICON_FALLBACK,
+        ICON_DEW, ICON_WIND, ICON_RAINPROB, ICON_FALLBACK,
     ) if icon
 }
 
@@ -107,18 +109,34 @@ def dewpoint_color(f):
             else RED if f < 70 else PURPLE)
 
 
+def wind_color(mph):
+    return (GREEN if mph < 10 else YELLOW if mph < 20 else ORANGE if mph < 30
+            else RED)
+
+
+def rain_color(pct):
+    return (GREEN if pct < 20 else YELLOW if pct < 40 else ORANGE if pct < 60
+            else RED if pct < 80 else PURPLE)
+
+
+def _wind_mph(wind_str):
+    """Parse NWS windSpeed (e.g. '5 mph' or '5 to 10 mph') to an int. Ranges
+    take the higher number, so wind chill / display reflect the gustier end."""
+    nums = re.findall(r'\d+', wind_str or '')
+    return int(nums[-1]) if nums else 0
+
+
 def _feels_like(temp_f, rh, wind_str):
     """Heat index (hot+humid) or wind chill (cold+windy), else actual temp."""
     if temp_f >= 80 and rh >= 40:
-        hi = 0.5 * (temp_f + 61.2 + (temp_f - 68) * 1.2 + rh * 0.094)
+        hi = 0.5 * (temp_f + 61.0 + (temp_f - 68) * 1.2 + rh * 0.094)
         if hi >= 80:
             hi = (-42.379 + 2.04901523*temp_f + 10.14333127*rh
                   - 0.22475541*temp_f*rh - 0.00683783*temp_f**2
                   - 0.05481717*rh**2 + 0.00122874*temp_f**2*rh
                   + 0.00085282*temp_f*rh**2 - 0.00000199*temp_f**2*rh**2)
         return round(hi)
-    nums = re.findall(r'\d+', wind_str or '')
-    wind = int(nums[-1]) if nums else 0
+    wind = _wind_mph(wind_str)
     if temp_f <= 50 and wind > 3:
         return round(35.74 + 0.6215*temp_f - 35.75*wind**0.16 + 0.4275*temp_f*wind**0.16)
     return temp_f
@@ -145,20 +163,20 @@ def get_weather():
         if temp_val is not None:
             apps["weather_temp"] = {
                 "text": f"{temp_val}°", "icon": icon_for_condition(condition),
-                "color": [255, 255, 255], "noScroll": True,
+                "color": [255, 255, 255], "noScroll": True, "pos": 0,
                 "duration": 3, "lifetime": 1200}
 
         if temp_val is not None and rh is not None:
             feels = _feels_like(temp_val, rh, cur.get('windSpeed', ''))
             apps["weather_feels"] = {
                 "text": f"{feels}°", "icon": ICON_FEELS,
-                "color": feels_color(feels), "noScroll": True,
+                "color": feels_color(feels), "noScroll": True, "pos": 1,
                 "duration": 3, "lifetime": 1200}
 
         if rh is not None:
             apps["weather_hum"] = {
-                "text": f"{rh if rh is not None else 0}%", "icon": ICON_HUMIDITY,
-                "color": [255, 255, 255], "noScroll": True,
+                "text": f"{rh}%", "icon": ICON_HUMIDITY,
+                "color": [255, 255, 255], "noScroll": True, "pos": 2,
                 "duration": 3, "lifetime": 1200}
 
         dp = cur.get('dewpoint', {}).get('value')
@@ -166,7 +184,21 @@ def get_weather():
             dp_f = round(dp * 9 / 5 + 32)
             apps["weather_dew"] = {
                 "text": f"{dp_f}°", "icon": ICON_DEW,
-                "color": dewpoint_color(dp_f), "noScroll": True,
+                "color": dewpoint_color(dp_f), "noScroll": True, "pos": 3,
+                "duration": 3, "lifetime": 1200}
+
+        wind = _wind_mph(cur.get('windSpeed', ''))
+        wind_dir = cur.get('windDirection', '')
+        apps["weather_wind"] = {
+            "text": f"{wind_dir}{wind}", "icon": ICON_WIND,
+            "color": wind_color(wind), "noScroll": True, "pos": 4,
+            "duration": 3, "lifetime": 1200}
+
+        pop = cur.get('probabilityOfPrecipitation', {}).get('value')
+        if pop is not None:
+            apps["weather_rain"] = {
+                "text": f"{round(pop)}%", "icon": ICON_RAINPROB,
+                "color": rain_color(pop), "noScroll": True, "pos": 5,
                 "duration": 3, "lifetime": 1200}
 
         return apps

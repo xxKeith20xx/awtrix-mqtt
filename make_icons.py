@@ -176,6 +176,30 @@ DEWPOINT_GRID = [
 ]
 DEWPOINT_PALETTE = [(80, 140, 220), (160, 200, 255), (0, 0, 0), (0, 0, 0)]
 
+WIND_GRID = [
+    3, 3, 3, 3, 3, 3, 3, 3,
+    3, 0, 0, 0, 0, 0, 3, 3,
+    3, 3, 3, 3, 3, 0, 0, 3,
+    3, 0, 0, 0, 0, 0, 0, 3,
+    3, 3, 3, 3, 3, 3, 3, 3,
+    3, 0, 0, 0, 0, 0, 3, 3,
+    3, 3, 3, 3, 3, 0, 3, 3,
+    3, 3, 3, 3, 3, 3, 3, 3,
+]
+WIND_PALETTE = [(170, 205, 230), (0, 0, 0), (0, 0, 0), (0, 0, 0)]
+
+UMBRELLA_GRID = [
+    3, 3, 3, 0, 3, 3, 3, 3,
+    3, 0, 0, 0, 0, 0, 3, 3,
+    0, 0, 0, 0, 0, 0, 0, 3,
+    3, 3, 3, 1, 3, 3, 3, 3,
+    3, 3, 3, 1, 3, 3, 3, 3,
+    3, 3, 3, 1, 3, 3, 3, 3,
+    3, 3, 1, 1, 3, 3, 3, 3,
+    3, 3, 3, 3, 3, 3, 3, 3,
+]
+UMBRELLA_PALETTE = [(80, 140, 220), (170, 140, 100), (0, 0, 0), (0, 0, 0)]
+
 ICONS = {
     "mercury": (MERCURY_GRID, MERCURY_PALETTE),
     "mercury_rx": (MERCURY_GRID, MERCURY_RX_PALETTE),
@@ -185,6 +209,8 @@ ICONS = {
     "elevation": (ELEVATION_GRID, ELEVATION_PALETTE),
     "feels": (FEELS_GRID, FEELS_PALETTE),
     "dewpoint": (DEWPOINT_GRID, DEWPOINT_PALETTE),
+    "wind": (WIND_GRID, WIND_PALETTE),
+    "umbrella": (UMBRELLA_GRID, UMBRELLA_PALETTE),
 }
 
 
