@@ -148,17 +148,17 @@ def get_weather():
                 "color": [255, 255, 255], "noScroll": True,
                 "duration": 3, "lifetime": 1200}
 
-        if rh is not None:
-            apps["weather_hum"] = {
-                "text": f"{rh if rh is not None else 0}%", "icon": ICON_HUMIDITY,
-                "color": [255, 255, 255], "noScroll": True,
-                "duration": 3, "lifetime": 1200}
-
         if temp_val is not None and rh is not None:
             feels = _feels_like(temp_val, rh, cur.get('windSpeed', ''))
             apps["weather_feels"] = {
                 "text": f"{feels}°", "icon": ICON_FEELS,
                 "color": feels_color(feels), "noScroll": True,
+                "duration": 3, "lifetime": 1200}
+
+        if rh is not None:
+            apps["weather_hum"] = {
+                "text": f"{rh if rh is not None else 0}%", "icon": ICON_HUMIDITY,
+                "color": [255, 255, 255], "noScroll": True,
                 "duration": 3, "lifetime": 1200}
 
         dp = cur.get('dewpoint', {}).get('value')
