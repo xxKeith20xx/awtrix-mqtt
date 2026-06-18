@@ -376,7 +376,10 @@ if __name__ == "__main__":
     publish({
         "aqi": aqi_app,
         "pollen": pollen_app,
-        **sun_apps,
+        "uv": sun_apps.get("uv"),
+        "sun": sun_apps.get("sun"),
+        "noon": sun_apps.get("noon"),
+        "daylen": sun_apps.get("daylen"),
         **pos_apps,
         "moon": moon_app,
         "mercury": mercury_app,

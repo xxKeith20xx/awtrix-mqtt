@@ -116,15 +116,16 @@ SOLAR_NOON_GRID = [
 SOLAR_NOON_PALETTE = [(255, 240, 60), (255, 160, 40), (180, 160, 80), (0, 0, 0)]
 
 DAYLIGHT_GRID = [
-    3, 3, 3, 3, 3, 3, 3, 3,
-    3, 3, 3, 0, 0, 3, 3, 3,
-    3, 3, 0, 3, 3, 0, 3, 3,
-    3, 0, 3, 3, 3, 3, 0, 3,
-    0, 3, 3, 3, 3, 3, 3, 0,
-    0, 3, 3, 3, 3, 3, 3, 0,
-    1, 1, 1, 1, 1, 1, 1, 1,
-    3, 3, 3, 3, 3, 3, 3, 3,
+    3, 3, 3, 3, 3,
+    3, 3, 0, 3, 3,
+    3, 0, 3, 0, 3,
+    0, 3, 3, 3, 0,
+    0, 3, 3, 3, 0,
+    0, 3, 3, 3, 0,
+    1, 1, 1, 1, 1,
+    3, 3, 3, 3, 3,
 ]
+DAYLIGHT_SIZE = (5, 8)
 DAYLIGHT_PALETTE = [(255, 220, 50), (220, 140, 40), (0, 0, 0), (0, 0, 0)]
 
 COMPASS_GRID = [
@@ -155,7 +156,7 @@ ICONS = {
     "mercury": (MERCURY_GRID, MERCURY_PALETTE),
     "mercury_rx": (MERCURY_GRID, MERCURY_RX_PALETTE),
     "solar_noon": (SOLAR_NOON_GRID, SOLAR_NOON_PALETTE),
-    "daylight": (DAYLIGHT_GRID, DAYLIGHT_PALETTE),
+    "daylight": (DAYLIGHT_GRID, DAYLIGHT_PALETTE, *DAYLIGHT_SIZE),
     "compass": (COMPASS_GRID, COMPASS_PALETTE),
     "elevation": (ELEVATION_GRID, ELEVATION_PALETTE),
 }
@@ -164,7 +165,9 @@ ICONS = {
 if __name__ == "__main__":
     import os
     out_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "icons")
-    for name, (grid, palette) in ICONS.items():
+    for name, entry in ICONS.items():
+        grid, palette = entry[0], entry[1]
+        w, h = (entry[2], entry[3]) if len(entry) > 2 else (8, 8)
         path = os.path.join(out_dir, f"{name}.gif")
-        write_gif(path, 8, 8, grid, palette)
+        write_gif(path, w, h, grid, palette)
         print(f"wrote {path}")
