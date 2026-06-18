@@ -116,16 +116,16 @@ SOLAR_NOON_GRID = [
 SOLAR_NOON_PALETTE = [(255, 240, 60), (255, 160, 40), (180, 160, 80), (0, 0, 0)]
 
 DAYLIGHT_GRID = [
-    3, 3, 3, 3, 3,
-    3, 3, 0, 3, 3,
-    3, 0, 3, 0, 3,
-    0, 3, 3, 3, 0,
-    0, 3, 3, 3, 0,
-    0, 3, 3, 3, 0,
-    1, 1, 1, 1, 1,
-    3, 3, 3, 3, 3,
+    3, 3, 3,
+    3, 0, 3,
+    0, 3, 0,
+    0, 3, 0,
+    0, 3, 0,
+    0, 3, 0,
+    1, 1, 1,
+    3, 3, 3,
 ]
-DAYLIGHT_SIZE = (5, 8)
+DAYLIGHT_SIZE = (3, 8)
 DAYLIGHT_PALETTE = [(255, 220, 50), (220, 140, 40), (0, 0, 0), (0, 0, 0)]
 
 COMPASS_GRID = [
@@ -152,6 +152,30 @@ ELEVATION_GRID = [
 ]
 ELEVATION_PALETTE = [(255, 230, 50), (200, 200, 200), (100, 100, 80), (0, 0, 0)]
 
+FEELS_GRID = [
+    3, 3, 3, 1, 1, 3, 3, 3,
+    3, 3, 3, 0, 0, 3, 2, 3,
+    3, 3, 3, 0, 0, 2, 3, 3,
+    3, 3, 3, 0, 0, 3, 2, 3,
+    3, 3, 3, 0, 0, 2, 3, 3,
+    3, 3, 0, 0, 0, 0, 2, 3,
+    3, 3, 0, 0, 0, 0, 3, 3,
+    3, 3, 3, 0, 0, 3, 3, 3,
+]
+FEELS_PALETTE = [(220, 60, 60), (220, 220, 220), (255, 160, 40), (0, 0, 0)]
+
+DEWPOINT_GRID = [
+    3, 3, 3, 0, 0, 3, 3, 3,
+    3, 3, 0, 0, 0, 0, 3, 3,
+    3, 0, 0, 0, 0, 0, 0, 3,
+    3, 0, 0, 0, 0, 0, 0, 3,
+    0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 1, 1, 0, 0, 0,
+    3, 0, 0, 0, 0, 0, 0, 3,
+    3, 3, 0, 0, 0, 0, 3, 3,
+]
+DEWPOINT_PALETTE = [(80, 140, 220), (160, 200, 255), (0, 0, 0), (0, 0, 0)]
+
 ICONS = {
     "mercury": (MERCURY_GRID, MERCURY_PALETTE),
     "mercury_rx": (MERCURY_GRID, MERCURY_RX_PALETTE),
@@ -159,6 +183,8 @@ ICONS = {
     "daylight": (DAYLIGHT_GRID, DAYLIGHT_PALETTE, *DAYLIGHT_SIZE),
     "compass": (COMPASS_GRID, COMPASS_PALETTE),
     "elevation": (ELEVATION_GRID, ELEVATION_PALETTE),
+    "feels": (FEELS_GRID, FEELS_PALETTE),
+    "dewpoint": (DEWPOINT_GRID, DEWPOINT_PALETTE),
 }
 
 

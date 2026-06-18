@@ -104,7 +104,7 @@ def get_aqi():
         return None
     v = int(round(v))
     return {"text": str(v), "icon": IC_AQI, "color": aqi_color(v),
-            "scroll": False, "duration": DURATION, "lifetime": LIFETIME}
+            "noScroll": True, "duration": DURATION, "lifetime": LIFETIME}
 
 
 def get_sun_apps():
@@ -123,7 +123,7 @@ def get_sun_apps():
     if uv is not None:
         uv = max(0, round(uv))
         apps["uv"] = {"text": f"UV{uv}", "icon": IC_UV, "color": uv_color(uv),
-                       "scroll": False, "duration": DURATION, "lifetime": LIFETIME}
+                       "noScroll": True, "duration": DURATION, "lifetime": LIFETIME}
 
     daily = d.get("daily", {})
     rises, sets = daily.get("sunrise", []), daily.get("sunset", [])
@@ -146,19 +146,19 @@ def get_sun_apps():
         else:
             label, icon = hhmm(sr0), IC_SUNRISE
         apps["sun"] = {"text": label, "icon": icon, "color": WHITE,
-                       "scroll": False, "duration": DURATION, "lifetime": LIFETIME}
+                       "noScroll": True, "duration": DURATION, "lifetime": LIFETIME}
 
         noon = sr0 + (ss0 - sr0) / 2
         apps["noon"] = {"text": hhmm(noon), "icon": IC_NOON,
                         "color": [255, 250, 200],
-                        "scroll": False, "duration": DURATION, "lifetime": LIFETIME}
+                        "noScroll": True, "duration": DURATION, "lifetime": LIFETIME}
 
         daylen = ss0 - sr0
         hours = int(daylen.total_seconds() // 3600)
         minutes = int((daylen.total_seconds() % 3600) // 60)
         apps["daylen"] = {"text": f"{hours}h{minutes:02d}m", "icon": IC_DAYLEN,
                           "color": [255, 220, 100],
-                          "scroll": False, "duration": DURATION, "lifetime": LIFETIME}
+                          "noScroll": True, "duration": DURATION, "lifetime": LIFETIME}
 
     return apps
 
@@ -190,7 +190,7 @@ def get_pollen():
             if val is not None:
                 max_val = max(max_val, float(val))
     return {"text": f"{max_val:.1f}", "icon": IC_POLLEN, "color": pollen_color(max_val),
-            "scroll": False, "duration": DURATION, "lifetime": LIFETIME}
+            "noScroll": True, "duration": DURATION, "lifetime": LIFETIME}
 
 
 def get_moon():
@@ -204,7 +204,7 @@ def get_moon():
     # Map phase to one of 8 equal buckets centered on new/quarter/full/etc.
     icon = MOON_ICONS[int(((phase + 0.0625) % 1.0) * 8) % 8]
     return {"text": f"{illum}%", "icon": icon, "color": [200, 200, 170],
-            "scroll": False, "duration": DURATION, "lifetime": LIFETIME}
+            "noScroll": True, "duration": DURATION, "lifetime": LIFETIME}
 
 
 # --- Mercury retrograde -----------------------------------------------------
@@ -268,7 +268,7 @@ def get_mercury():
     text = f"{'R' if retro else 'D'}{days}d" if days else ("RETRO" if retro else "DIRECT")
     icon = IC_MERCURY_RX if retro else IC_MERCURY
     return {"text": text, "icon": icon, "color": RED if retro else GREEN,
-            "scroll": False, "duration": DURATION, "lifetime": LIFETIME}
+            "noScroll": True, "duration": DURATION, "lifetime": LIFETIME}
 
 
 # --- Sun position (local computation) ----------------------------------------
@@ -325,9 +325,9 @@ def get_sun_position():
     pct = min(pct, 100)
     return {
         "compass": {"text": compass, "icon": IC_COMPASS, "color": WHITE,
-                    "scroll": False, "duration": DURATION, "lifetime": LIFETIME},
+                    "noScroll": True, "duration": DURATION, "lifetime": LIFETIME},
         "elev": {"text": f"{pct}%", "icon": IC_ELEV, "color": _elevation_color(pct),
-                 "scroll": False, "duration": DURATION, "lifetime": LIFETIME},
+                 "noScroll": True, "duration": DURATION, "lifetime": LIFETIME},
     }
 
 
