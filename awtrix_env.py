@@ -64,7 +64,7 @@ MOON_ICONS = ["moon_new", "moon_wxc", "moon_fq", "moon_wxg",
               "moon_full", "moon_wng", "moon_lq", "moon_wnc"]
 
 LIFETIME = 4500  # ~75 min; expires if the hourly job stops (cron is hourly)
-DURATION = 2     # seconds each app shows (override of the 10s global app time)
+DURATION = 3     # seconds each app shows (override of the 10s global app time)
 
 
 # --- Color helpers (return [r,g,b]) ---------------------------------------
