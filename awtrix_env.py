@@ -265,10 +265,10 @@ def get_mercury():
     retro = _mercury_retrograde(d)
     days = next((n for n in range(1, 130)
                   if _mercury_retrograde(d + n) != retro), None)
-    # Direction (direct/retrograde) is shown by the icon + color, so the text is
-    # just days-until-next-station. Avoids a leading "D"/"R" that the LED font
-    # renders indistinguishably from the trailing "d" in days.
-    text = f"{days}d" if days else ("RETRO" if retro else "DIRECT")
+    # Leading "D"/"R" = direct/retrograde, trailing "d" = days. The uppercase:2
+    # flag below renders the trailing "d" lowercase so it's distinct from the
+    # leading uppercase direction letter.
+    text = f"{'R' if retro else 'D'}{days}d" if days else ("RETRO" if retro else "DIRECT")
     icon = IC_MERCURY_RX if retro else IC_MERCURY
     # uppercase:2 = "show as sent" so the lowercase "d" in "13d" actually renders
     # lowercase (Awtrix forces uppercase globally by default).
