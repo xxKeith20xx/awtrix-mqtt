@@ -5,6 +5,9 @@
 # Logs
 *.log
 
+# Cache
+.pollen_cache.json
+
 # Python
 __pycache__/
 *.pyc

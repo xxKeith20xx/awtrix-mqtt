@@ -17,6 +17,7 @@ others still publish, and retained messages keep the last good value.
 import json
 import math
 import os
+import time
 from datetime import datetime, timedelta, timezone
 
 import requests
@@ -63,7 +64,7 @@ IC_COMPASS, IC_ELEV = "compass", "elevation"
 MOON_ICONS = ["moon_new", "moon_wxc", "moon_fq", "moon_wxg",
               "moon_full", "moon_wng", "moon_lq", "moon_wnc"]
 
-LIFETIME = 4500  # ~75 min; expires if the hourly job stops (cron is hourly)
+LIFETIME = 2700  # ~45 min; expires if the half-hourly job stops
 DURATION = 3     # seconds each app shows (override of the 10s global app time)
 
 
@@ -163,11 +164,26 @@ def get_sun_apps():
     return apps
 
 
+POLLEN_CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".pollen_cache.json")
+POLLEN_CACHE_MAX_AGE = 6 * 3600  # 6 hours
+
+
 def get_pollen():
     """Google Pollen API forecast. Returns None on any problem (fails soft)."""
     if not GOOGLE_API_KEY or GOOGLE_API_KEY == "your_google_api_key_here":
         print("Google API Key not configured, skipping Pollen app.")
         return None
+
+    if os.path.exists(POLLEN_CACHE):
+        try:
+            with open(POLLEN_CACHE) as f:
+                cached = json.load(f)
+            if time.time() - cached.get("ts", 0) < POLLEN_CACHE_MAX_AGE:
+                print("Pollen: using cached result")
+                return cached["data"]
+        except (json.JSONDecodeError, KeyError):
+            pass
+
     url = "https://pollen.googleapis.com/v1/forecast:lookup"
     params = {
         "key": GOOGLE_API_KEY,
@@ -189,8 +205,13 @@ def get_pollen():
             val = idx_info.get("value")
             if val is not None:
                 max_val = max(max_val, float(val))
-    return {"text": f"{max_val:.1f}", "icon": IC_POLLEN, "color": pollen_color(max_val),
-            "pos": 7, "noScroll": True, "duration": DURATION, "lifetime": LIFETIME}
+    result = {"text": f"{max_val:.1f}", "icon": IC_POLLEN, "color": pollen_color(max_val),
+              "pos": 7, "noScroll": True, "duration": DURATION, "lifetime": LIFETIME}
+
+    with open(POLLEN_CACHE, "w") as f:
+        json.dump({"ts": time.time(), "data": result}, f)
+
+    return result
 
 
 def get_moon():
