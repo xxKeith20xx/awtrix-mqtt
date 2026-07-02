@@ -36,7 +36,7 @@ All display logic is handled host-side; the clock simply acts as a display matri
    * **Elevation:** Sun's height as a day-progress percentage — 0% at horizon, 100% at peak. Low = light flooding through windows, high = overhead. Skips at night (computed locally).
    * **Moon Phase:** Computes current moon illumination and phase locally, selecting one of 8 phase icons.
    * **Mercury Retrograde:** Computes Mercury's retrograde status locally from orbital elements (no API), showing days until the next station (e.g. `13d`); the icon and color (green direct / red retrograde) convey the direction.
-   * **Pollen:** Fetches allergy index using the official **Google Pollen API**.
+   * **Pollen:** Fetches allergy index for the ZIP from pollen.com's unofficial, free API.
    * Scheduled via `cron`.
 
 ---
@@ -61,7 +61,7 @@ All 16 apps rotate on the clock (3 seconds each). Display order is fixed with th
 | App | Example | Meaning |
 |-----|---------|---------|
 | **aqi** | `42` | Air quality index. Green ≤50, Yellow ≤100, Orange ≤150, Red ≤200, Purple 200+ |
-| **pollen** | `2.0` | Worst of tree/grass/weed allergens on a 0–5 scale (Google Pollen API) |
+| **pollen** | `2.9` | Today's allergy index for the ZIP on a 0–12 scale (pollen.com) |
 | **uv** | `UV6` | Sunburn risk. Green <3, Yellow <6, Orange <8, Red <11, Purple 11+ |
 | **sun** | `8:35` | Time of the *next* sunrise or sunset (icon tells you which) |
 | **noon** | `1:32` | Solar noon — when the sun reaches its highest point today |
@@ -77,7 +77,7 @@ All 16 apps rotate on the clock (3 seconds each). Display order is fixed with th
 |--------|------|----------------|
 | Open-Meteo | aqi, uv, sun, noon, daylen | No |
 | NWS | temp, feels, wind, rain, humidity, dew | No (needs contact email) |
-| Google Pollen API | pollen | Yes |
+| pollen.com (unofficial) | pollen | No |
 | Local computation | compass, elev, moon, mercury | No (pure math) |
 
 ---
@@ -114,9 +114,6 @@ MQTT_PASS=your_mqtt_password
 LAT=your_latitude
 LON=your_longitude
 ZIP_CODE=your_zip_code
-
-# Google Pollen API (Get key from Google Maps Platform)
-GOOGLE_API_KEY=AIzaSyYourKeyHere...
 
 # NWS API Guidelines require a contact email in the User-Agent header
 NWS_CONTACT=your_email@example.com

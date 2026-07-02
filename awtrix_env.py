@@ -1,7 +1,7 @@
 """
 Push environmental data to Awtrix 3 as custom apps over MQTT:
   aqi      - US Air Quality Index (Open-Meteo, no key)
-  pollen   - allergy index 0-12 for the ZIP (pollen.com unofficial; fails soft)
+  pollen   - allergy index 0-12 for the ZIP (pollen.com unofficial, free; fails soft)
   uv       - current UV index (Open-Meteo, no key)
   sun      - next sun event (sunrise or sunset) with time (Open-Meteo)
   noon     - solar noon time (midpoint of sunrise/sunset, Open-Meteo)
@@ -51,9 +51,6 @@ ZIP_CODE = os.environ.get("ZIP_CODE", "78702")
 UA = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/124.0 Safari/537.36")
 
-# Google API Key for Pollen API (falls back to environment variable)
-GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "your_google_api_key_here")
-
 # Icon filenames in the device /ICONS folder.
 IC_AQI, IC_POLLEN, IC_UV = "aqi", "pollen", "sun"
 IC_SUNRISE, IC_SUNSET = "sunrise", "sunset"
@@ -88,9 +85,9 @@ def uv_color(v):
 
 
 def pollen_color(v):
-    # Google Universal Pollen Index, 0-5
-    return (GREEN if v <= 1.0 else YELLOW if v <= 2.0 else ORANGE if v <= 3.0
-            else RED if v <= 4.0 else PURPLE)
+    # pollen.com index, 0-12 (Low/Moderate/High/Very High/Extreme bands)
+    return (GREEN if v <= 2.4 else YELLOW if v <= 4.8 else ORANGE if v <= 7.2
+            else RED if v <= 9.6 else PURPLE)
 
 
 # --- Data sources ---------------------------------------------------------
@@ -165,15 +162,12 @@ def get_sun_apps():
 
 
 POLLEN_CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".pollen_cache.json")
-POLLEN_CACHE_MAX_AGE = 6 * 3600  # 6 hours
+POLLEN_CACHE_MAX_AGE = 12 * 3600  # pollen.com only updates its forecast once a day
 
 
 def get_pollen():
-    """Google Pollen API forecast. Returns None on any problem (fails soft)."""
-    if not GOOGLE_API_KEY or GOOGLE_API_KEY == "your_google_api_key_here":
-        print("Google API Key not configured, skipping Pollen app.")
-        return None
-
+    """pollen.com unofficial forecast for ZIP_CODE. Free, no API key. Returns
+    None on any problem (fails soft)."""
     if os.path.exists(POLLEN_CACHE):
         try:
             with open(POLLEN_CACHE) as f:
@@ -184,28 +178,16 @@ def get_pollen():
         except (json.JSONDecodeError, KeyError):
             pass
 
-    url = "https://pollen.googleapis.com/v1/forecast:lookup"
-    params = {
-        "key": GOOGLE_API_KEY,
-        "location.latitude": LAT,
-        "location.longitude": LON,
-        "days": 1,
-    }
-    r = requests.get(url, params=params, timeout=10)
+    url = f"https://www.pollen.com/api/forecast/current/pollen/{ZIP_CODE}"
+    r = requests.get(url, headers={"User-Agent": UA, "Referer": "https://www.pollen.com/"},
+                      timeout=10)
     r.raise_for_status()
-    daily_info = r.json().get("dailyInfo", [])
-    if not daily_info:
+    periods = r.json().get("Location", {}).get("periods", [])
+    today = next((p for p in periods if p.get("Type") == "Today"), None)
+    if today is None or today.get("Index") is None:
         return None
-    # Google returns indices for TREE, GRASS, and WEED. Take the maximum.
-    pollen_types = daily_info[0].get("pollenTypeInfo", [])
-    max_val = 0.0
-    for p_type in pollen_types:
-        idx_info = p_type.get("indexInfo", {})
-        if idx_info:
-            val = idx_info.get("value")
-            if val is not None:
-                max_val = max(max_val, float(val))
-    result = {"text": f"{max_val:.1f}", "icon": IC_POLLEN, "color": pollen_color(max_val),
+    val = float(today["Index"])
+    result = {"text": f"{val:.1f}", "icon": IC_POLLEN, "color": pollen_color(val),
               "pos": 7, "noScroll": True, "duration": DURATION, "lifetime": LIFETIME}
 
     with open(POLLEN_CACHE, "w") as f:

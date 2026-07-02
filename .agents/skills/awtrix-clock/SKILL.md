@@ -74,9 +74,11 @@ it's sent.
 - **AQI/UV/sun:** Open-Meteo, free, no key. US AQI via the air-quality endpoint;
   `uv_index` + `sunrise`/`sunset` via the forecast endpoint.
 - **Pollen:** Open-Meteo has NO US pollen (Europe only). Uses pollen.com's
-  unofficial endpoint (needs User-Agent + Referer headers); fragile by design
-  and fails soft (drops the pollen app, never blocks others). Robust upgrade =
-  Google Pollen API (needs key) — one-function swap in `get_pollen`.
+  unofficial, free endpoint (needs User-Agent + Referer headers, no key);
+  fragile by design and fails soft (drops the pollen app, never blocks
+  others). Its forecast only updates once/day, so the local cache
+  (`.pollen_cache.json`) is kept at 12h. A paid, more robust option is the
+  Google Pollen API — was used previously, swapped back for cost.
 - **Moon:** computed locally from date (synodic cycle); no API. Phase selects
   one of 8 `moon_*.gif` icons.
 - **Mercury retrograde:** computed locally from low-precision Keplerian
