@@ -210,7 +210,7 @@ PRESSURE_GRID = [
     1, 0, 0, 0, 0, 0, 0, 1,
     3, 1, 1, 1, 1, 1, 1, 3,
 ]
-PRESSURE_PALETTE = [(210, 210, 220), (90, 95, 105), (0, 0, 0), (230, 60, 50)]
+PRESSURE_PALETTE = [(210, 210, 220), (90, 95, 105), (230, 60, 50), (0, 0, 0)]
 
 # Trend arrows shown alongside the pressure gauge: rising (fair weather likely)
 # vs falling (unsettled weather likely). Baked-in green/red so the direction
