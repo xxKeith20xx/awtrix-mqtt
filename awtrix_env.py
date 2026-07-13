@@ -2,6 +2,7 @@
 Push environmental data to Awtrix 3 as custom apps over MQTT:
   aqi      - US Air Quality Index (Open-Meteo, no key)
   pollen   - allergy index 0-12 for the ZIP (pollen.com unofficial, free; fails soft)
+  pressure - barometric pressure in inHg, converted from Open-Meteo pressure_msl (hPa)
   uv       - current UV index (Open-Meteo, no key)
   sun      - next sun event (sunrise or sunset) with time (Open-Meteo)
   noon     - solar noon time (midpoint of sunrise/sunset, Open-Meteo)
@@ -57,6 +58,8 @@ IC_SUNRISE, IC_SUNSET = "sunrise", "sunset"
 IC_MERCURY, IC_MERCURY_RX = "mercury", "mercury_rx"
 IC_NOON, IC_DAYLEN = "solar_noon", "daylight"
 IC_COMPASS, IC_ELEV = "compass", "elevation"
+IC_PRESSURE = "pressure"
+IC_PRESSURE_UP, IC_PRESSURE_DOWN = "pressure_up", "pressure_down"
 # Moon phase icons, ordered new -> ... -> full -> ... (one eighth each).
 MOON_ICONS = ["moon_new", "moon_wxc", "moon_fq", "moon_wxg",
               "moon_full", "moon_wng", "moon_lq", "moon_wnc"]
@@ -90,6 +93,13 @@ def pollen_color(v):
             else RED if v <= 9.6 else PURPLE)
 
 
+def pressure_color(hpa):
+    # Low pressure signals incoming storms (more alarming); normal-to-high
+    # pressure means stable/fair weather, so it stays green.
+    return (PURPLE if hpa < 990 else RED if hpa < 1000 else ORANGE if hpa < 1008
+            else YELLOW if hpa < 1013 else GREEN)
+
+
 # --- Data sources ---------------------------------------------------------
 def get_aqi():
     r = requests.get(
@@ -101,15 +111,59 @@ def get_aqi():
     if v is None:
         return None
     v = int(round(v))
-    return {"text": str(v), "icon": IC_AQI, "color": aqi_color(v), "pos": 6,
+    return {"text": str(v), "icon": IC_AQI, "color": aqi_color(v), "pos": 7,
             "noScroll": True, "duration": DURATION, "lifetime": LIFETIME}
+
+
+HPA_TO_INHG = 0.0295299830714
+
+PRESSURE_CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".pressure_trend.json")
+PRESSURE_TREND_WINDOW = 3 * 3600        # meteorological standard: compare to ~3h ago
+PRESSURE_TREND_TOLERANCE = 1.5 * 3600   # accept a sample anywhere 1.5-4.5h back
+PRESSURE_TREND_THRESHOLD_INHG = 0.02    # smaller than this reads as noise, not a trend
+
+
+def _pressure_trend_icon(hpa_now):
+    """Rising/falling/steady vs. a reading from ~3h ago, cached locally (same
+    pattern as the pollen cache). Falls back to the steady gauge icon until
+    there's enough history -- the dashboard also calls this every 60s, so the
+    cache is trimmed by time window, not sample count, to stay accurate
+    regardless of caller frequency."""
+    now = time.time()
+    history = []
+    if os.path.exists(PRESSURE_CACHE):
+        try:
+            with open(PRESSURE_CACHE) as f:
+                history = json.load(f)
+        except (json.JSONDecodeError, ValueError):
+            history = []
+
+    icon = IC_PRESSURE
+    target = now - PRESSURE_TREND_WINDOW
+    candidates = [h for h in history if abs(h["ts"] - target) <= PRESSURE_TREND_TOLERANCE]
+    if candidates:
+        past = min(candidates, key=lambda h: abs(h["ts"] - target))
+        delta_inhg = (hpa_now - past["hpa"]) * HPA_TO_INHG
+        if delta_inhg >= PRESSURE_TREND_THRESHOLD_INHG:
+            icon = IC_PRESSURE_UP
+        elif delta_inhg <= -PRESSURE_TREND_THRESHOLD_INHG:
+            icon = IC_PRESSURE_DOWN
+
+    history.append({"ts": now, "hpa": hpa_now})
+    cutoff = now - (PRESSURE_TREND_WINDOW + PRESSURE_TREND_TOLERANCE)
+    history = [h for h in history if h["ts"] >= cutoff]
+    with open(PRESSURE_CACHE, "w") as f:
+        json.dump(history, f)
+
+    return icon
 
 
 def get_sun_apps():
     """One call returns UV, next sun event, solar noon, and day length."""
     r = requests.get(
         "https://api.open-meteo.com/v1/forecast",
-        params={"latitude": LAT, "longitude": LON, "current": "uv_index",
+        params={"latitude": LAT, "longitude": LON,
+                "current": "uv_index,pressure_msl",
                 "daily": "sunrise,sunset", "forecast_days": 2,
                 "timezone": "auto"}, timeout=10)
     r.raise_for_status()
@@ -120,8 +174,15 @@ def get_sun_apps():
     uv = d.get("current", {}).get("uv_index")
     if uv is not None:
         uv = max(0, round(uv))
-        apps["uv"] = {"text": f"UV{uv}", "icon": IC_UV, "color": uv_color(uv), "pos": 8,
+        apps["uv"] = {"text": f"UV{uv}", "icon": IC_UV, "color": uv_color(uv), "pos": 9,
                        "noScroll": True, "duration": DURATION, "lifetime": LIFETIME}
+
+    pressure_hpa = d.get("current", {}).get("pressure_msl")
+    if pressure_hpa is not None:
+        inhg = pressure_hpa * HPA_TO_INHG
+        apps["pressure"] = {"text": f"{inhg:.2f}", "icon": _pressure_trend_icon(pressure_hpa),
+                            "color": pressure_color(pressure_hpa), "pos": 4,
+                            "noScroll": True, "duration": DURATION, "lifetime": LIFETIME}
 
     daily = d.get("daily", {})
     rises, sets = daily.get("sunrise", []), daily.get("sunset", [])
@@ -143,19 +204,19 @@ def get_sun_apps():
             label, icon = hhmm(parse(rises[1])), IC_SUNRISE
         else:
             label, icon = hhmm(sr0), IC_SUNRISE
-        apps["sun"] = {"text": label, "icon": icon, "color": WHITE, "pos": 9,
+        apps["sun"] = {"text": label, "icon": icon, "color": WHITE, "pos": 10,
                        "noScroll": True, "duration": DURATION, "lifetime": LIFETIME}
 
         noon = sr0 + (ss0 - sr0) / 2
         apps["noon"] = {"text": hhmm(noon), "icon": IC_NOON,
-                        "color": [255, 250, 200], "pos": 10,
+                        "color": [255, 250, 200], "pos": 11,
                         "noScroll": True, "duration": DURATION, "lifetime": LIFETIME}
 
         daylen = ss0 - sr0
         hours = int(daylen.total_seconds() // 3600)
         minutes = int((daylen.total_seconds() % 3600) // 60)
         apps["daylen"] = {"text": f"{hours}h{minutes:02d}m", "icon": IC_DAYLEN,
-                          "color": [255, 220, 100], "textOffset": -2, "pos": 11,
+                          "color": [255, 220, 100], "textOffset": -2, "pos": 12,
                           "noScroll": True, "duration": DURATION, "lifetime": LIFETIME}
 
     return apps
@@ -188,7 +249,7 @@ def get_pollen():
         return None
     val = float(today["Index"])
     result = {"text": f"{val:.1f}", "icon": IC_POLLEN, "color": pollen_color(val),
-              "pos": 7, "noScroll": True, "duration": DURATION, "lifetime": LIFETIME}
+              "pos": 8, "noScroll": True, "duration": DURATION, "lifetime": LIFETIME}
 
     with open(POLLEN_CACHE, "w") as f:
         json.dump({"ts": time.time(), "data": result}, f)
@@ -206,7 +267,7 @@ def get_moon():
     illum = round((1 - math.cos(2 * math.pi * phase)) * 50)  # 0..100 %
     # Map phase to one of 8 equal buckets centered on new/quarter/full/etc.
     icon = MOON_ICONS[int(((phase + 0.0625) % 1.0) * 8) % 8]
-    return {"text": f"{illum}%", "icon": icon, "color": [200, 200, 170], "pos": 14,
+    return {"text": f"{illum}%", "icon": icon, "color": [200, 200, 170], "pos": 15,
             "noScroll": True, "duration": DURATION, "lifetime": LIFETIME}
 
 
@@ -275,7 +336,7 @@ def get_mercury():
     icon = IC_MERCURY_RX if retro else IC_MERCURY
     # uppercase:2 = "show as sent" so the lowercase "d" in "13d" actually renders
     # lowercase (Awtrix forces uppercase globally by default).
-    return {"text": text, "icon": icon, "color": RED if retro else GREEN, "pos": 15,
+    return {"text": text, "icon": icon, "color": RED if retro else GREEN, "pos": 16,
             "uppercase": 2, "noScroll": True, "duration": DURATION, "lifetime": LIFETIME}
 
 
@@ -332,9 +393,9 @@ def get_sun_position():
     pct = int(round(elev / peak * 100)) if peak > 0 else 0
     pct = min(pct, 100)
     return {
-        "compass": {"text": compass, "icon": IC_COMPASS, "color": WHITE, "pos": 12,
+        "compass": {"text": compass, "icon": IC_COMPASS, "color": WHITE, "pos": 13,
                     "noScroll": True, "duration": DURATION, "lifetime": LIFETIME},
-        "elev": {"text": f"{pct}%", "icon": IC_ELEV, "color": _elevation_color(pct), "pos": 13,
+        "elev": {"text": f"{pct}%", "icon": IC_ELEV, "color": _elevation_color(pct), "pos": 14,
                  "noScroll": True, "duration": DURATION, "lifetime": LIFETIME},
     }
 
@@ -384,6 +445,7 @@ if __name__ == "__main__":
     publish({
         "aqi": aqi_app,
         "pollen": pollen_app,
+        "pressure": sun_apps.get("pressure"),
         "uv": sun_apps.get("uv"),
         "sun": sun_apps.get("sun"),
         "noon": sun_apps.get("noon"),

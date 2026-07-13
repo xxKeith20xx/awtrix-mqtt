@@ -200,6 +200,45 @@ UMBRELLA_GRID = [
 ]
 UMBRELLA_PALETTE = [(80, 140, 220), (170, 140, 100), (0, 0, 0), (0, 0, 0)]
 
+PRESSURE_GRID = [
+    3, 1, 1, 1, 1, 1, 1, 3,
+    1, 0, 0, 0, 0, 0, 0, 1,
+    1, 0, 3, 3, 3, 3, 0, 1,
+    1, 0, 3, 3, 3, 2, 0, 1,
+    1, 0, 3, 3, 2, 3, 0, 1,
+    1, 0, 3, 2, 3, 3, 0, 1,
+    1, 0, 0, 0, 0, 0, 0, 1,
+    3, 1, 1, 1, 1, 1, 1, 3,
+]
+PRESSURE_PALETTE = [(210, 210, 220), (90, 95, 105), (0, 0, 0), (230, 60, 50)]
+
+# Trend arrows shown alongside the pressure gauge: rising (fair weather likely)
+# vs falling (unsettled weather likely). Baked-in green/red so the direction
+# reads at a glance without depending on the text color.
+PRESSURE_UP_GRID = [
+    3, 3, 3, 0, 0, 3, 3, 3,
+    3, 3, 0, 0, 0, 0, 3, 3,
+    3, 0, 0, 0, 0, 0, 0, 3,
+    0, 0, 0, 0, 0, 0, 0, 0,
+    3, 3, 3, 0, 0, 3, 3, 3,
+    3, 3, 3, 0, 0, 3, 3, 3,
+    3, 3, 3, 0, 0, 3, 3, 3,
+    3, 3, 3, 3, 3, 3, 3, 3,
+]
+PRESSURE_UP_PALETTE = [(0, 200, 80), (0, 0, 0), (0, 0, 0), (0, 0, 0)]
+
+PRESSURE_DOWN_GRID = [
+    3, 3, 3, 3, 3, 3, 3, 3,
+    3, 3, 3, 0, 0, 3, 3, 3,
+    3, 3, 3, 0, 0, 3, 3, 3,
+    3, 3, 3, 0, 0, 3, 3, 3,
+    0, 0, 0, 0, 0, 0, 0, 0,
+    3, 0, 0, 0, 0, 0, 0, 3,
+    3, 3, 0, 0, 0, 0, 3, 3,
+    3, 3, 3, 0, 0, 3, 3, 3,
+]
+PRESSURE_DOWN_PALETTE = [(235, 90, 50), (0, 0, 0), (0, 0, 0), (0, 0, 0)]
+
 ICONS = {
     "mercury": (MERCURY_GRID, MERCURY_PALETTE),
     "mercury_rx": (MERCURY_GRID, MERCURY_RX_PALETTE),
@@ -211,6 +250,9 @@ ICONS = {
     "dewpoint": (DEWPOINT_GRID, DEWPOINT_PALETTE),
     "wind": (WIND_GRID, WIND_PALETTE),
     "umbrella": (UMBRELLA_GRID, UMBRELLA_PALETTE),
+    "pressure": (PRESSURE_GRID, PRESSURE_PALETTE),
+    "pressure_up": (PRESSURE_UP_GRID, PRESSURE_UP_PALETTE),
+    "pressure_down": (PRESSURE_DOWN_GRID, PRESSURE_DOWN_PALETTE),
 }
 
 

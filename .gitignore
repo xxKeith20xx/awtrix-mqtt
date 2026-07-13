@@ -7,6 +7,7 @@
 
 # Cache
 .pollen_cache.json
+.pressure_trend.json
 
 # Python
 __pycache__/

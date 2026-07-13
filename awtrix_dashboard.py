@@ -70,6 +70,7 @@ def gather():
             _item("Rain · next hr", w.get("weather_rain")),
             _item("Humidity", w.get("weather_hum")),
             _item("Dew point", w.get("weather_dew")),
+            _item("Pressure", sun.get("pressure")),
         ]},
         {"name": "Air Quality", "items": [
             _item("AQI", aqi),

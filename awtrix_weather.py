@@ -191,14 +191,14 @@ def get_weather():
         wind_dir = cur.get('windDirection', '')
         apps["weather_wind"] = {
             "text": f"{wind_dir}{wind}", "icon": ICON_WIND,
-            "color": wind_color(wind), "noScroll": True, "pos": 4,
+            "color": wind_color(wind), "noScroll": True, "pos": 5,
             "duration": 3, "lifetime": 1200}
 
         pop = cur.get('probabilityOfPrecipitation', {}).get('value')
         if pop is not None:
             apps["weather_rain"] = {
                 "text": f"{round(pop)}%", "icon": ICON_RAINPROB,
-                "color": rain_color(pop), "noScroll": True, "pos": 5,
+                "color": rain_color(pop), "noScroll": True, "pos": 6,
                 "duration": 3, "lifetime": 1200}
 
         return apps

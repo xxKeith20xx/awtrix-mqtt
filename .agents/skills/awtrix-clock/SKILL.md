@@ -28,7 +28,7 @@ it's sent.
 - `awtrix_weather.py` — NWS hourly forecast -> `weather_temp`, `weather_hum`
   apps. Cron every 15 min. Condition->icon mapping in `CONDITION_RULES`.
 - `awtrix_env.py` — Open-Meteo + pollen.com + computed moon/Mercury -> `aqi`,
-  `pollen`, `uv`, `sun`, `moon`, `mercury` apps. Cron hourly.
+  `pollen`, `pressure`, `uv`, `sun`, `moon`, `mercury` apps. Cron hourly.
 - `awtrix_pomo_server.py` — always-on HTTP server (`127.0.0.1:8088`) serving a
   mobile web page that triggers a pomodoro countdown. Runs as a user systemd
   service (`awtrix-pomo.service`); exposed via Cloudflare Tunnel + Access.
@@ -89,13 +89,35 @@ it's sent.
   when direct. Icon swaps between `mercury.gif` (tan/grey, direct) and
   `mercury_rx.gif` (red/orange, retrograde) -- same shaded-sphere shape,
   different palette via make_icons.py.
+- **Pressure:** `pressure_msl` (hPa) piggybacks on the same Open-Meteo
+  forecast call `get_sun_apps()` already makes for UV/sunrise/sunset -- no
+  extra request. Converted to inHg for display (`HPA_TO_INHG` constant).
+  Text color is banded by absolute value (`pressure_color()`); the *icon*
+  carries the 3-hour trend (rising/falling/steady = `pressure_up.gif` /
+  `pressure_down.gif` / `pressure.gif`), since direction matters more than
+  the absolute number for forecasting. Trend history lives in a local cache
+  (`.pressure_trend.json`, gitignored, same pattern as the pollen cache) --
+  `_pressure_trend_icon()` compares the current reading to the closest
+  sample 1.5-4.5h old and calls it a trend past a 0.02 inHg threshold.
+  Because `awtrix_dashboard.py` calls the same function every 60s (not just
+  hourly via cron), the cache is trimmed by **time window**, not sample
+  count -- trimming by count would leave only a few minutes of history and
+  break the 3h lookback. Needs 2-3 hours of accumulated readings before
+  trend is meaningful; shows the steady icon until then.
 
 ## Deploy / common operations
 
 - Edit a script -> copy to `~/git/mqtt/` -> run once manually to push now
   (`python3 ~/git/mqtt/<script>.py`); cron handles it thereafter.
 - New/changed icon -> edit `make_icons.py`, run it, upload the GIF(s) to the
-  device `/ICONS` via web UI Files, then reference by filename in the script.
+  device `/ICONS`, then reference by filename in the script. Upload via the
+  web UI Files browser, or scriptably with curl against the ESPAsyncWebServer
+  file editor (no separate mkdir needed, ICONS/ already exists):
+  `curl -F "data=@icons/<name>.gif;filename=/ICONS/<name>.gif" http://192.168.0.239/edit`
+  -- the target path comes from the multipart `filename`, not a query param;
+  omitting the `/ICONS/` prefix silently uploads to device root instead
+  (delete a misplaced file with `curl -X DELETE "http://192.168.0.239/edit?path=/<name>.gif"`).
+  Verify placement with `GET /list?dir=/ICONS`.
 - Pomo server change -> replace file, `systemctl --user restart awtrix-pomo`.
 - Set rotation timing -> web UI Settings `ATIME`; per-app via `duration`.
 - Crons:
