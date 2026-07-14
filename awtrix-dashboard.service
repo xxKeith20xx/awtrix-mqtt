@@ -10,11 +10,14 @@ Restart=on-failure
 RestartSec=3
 
 # Hardening — safe because the script only reads its own code and icons,
-# opens an inbound TCP socket, and makes outbound HTTPS calls for data.
+# opens an inbound TCP socket, makes outbound HTTPS calls for data, and
+# writes its local trend-cache files (.pressure_trend.json, .pollen_cache.json)
+# back into its own working directory.
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=read-only
+ReadWritePaths=%h/git/mqtt
 RestrictAddressFamilies=AF_INET AF_INET6
 
 [Install]

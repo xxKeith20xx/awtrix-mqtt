@@ -28,10 +28,15 @@ it's sent.
 - `awtrix_weather.py` — NWS hourly forecast -> `weather_temp`, `weather_hum`
   apps. Cron every 15 min. Condition->icon mapping in `CONDITION_RULES`.
 - `awtrix_env.py` — Open-Meteo + pollen.com + computed moon/Mercury -> `aqi`,
-  `pollen`, `pressure`, `uv`, `sun`, `moon`, `mercury` apps. Cron hourly.
+  `pollen`, `pressure`, `uv`, `sun`, `moon`, `mercury` apps. Cron every 30 min.
 - `awtrix_pomo_server.py` — always-on HTTP server (`127.0.0.1:8088`) serving a
   mobile web page that triggers a pomodoro countdown. Runs as a user systemd
   service (`awtrix-pomo.service`); exposed via Cloudflare Tunnel + Access.
+- `awtrix_dashboard.py` — always-on HTTP server (`127.0.0.1:8089`) that mirrors
+  every metric the clock shows on one auto-refreshing page, by calling the
+  same `awtrix_env`/`awtrix_weather` functions directly (not by reading MQTT).
+  Runs as a user systemd service (`awtrix-dashboard.service`, sandboxed —
+  see gotcha #8 below).
 - `make_icons.py` — generates 8x8 GIF icons from pixel-index grids (pure
   stdlib, no Pillow). Output icons must be uploaded to the device `/ICONS`
   folder. Add new icons to its `ICONS` dict and re-run.
@@ -66,6 +71,19 @@ it's sent.
    `"rtttl"` or a `MELODIES/*.txt` file via `"sound":"name"`). No MIDI/MP3/
    polyphony. If silent, the buzzer is disabled in device Settings — test with a
    direct `/notify` publish carrying an `rtttl` string.
+8. **`awtrix-dashboard.service` runs with `ProtectHome=read-only`,** so any code
+   path it calls that writes a local cache file (`.pressure_trend.json`,
+   `.pollen_cache.json`) throws `PermissionError` under the service even though
+   it works fine run manually or via cron (which isn't sandboxed). The
+   exception isn't visible in `journalctl` either — the script isn't run with
+   `-u`/`PYTHONUNBUFFERED`, so stdout is block-buffered and `print()`s from
+   `safe()` failures don't flush. Net effect: a new cache-writing data source
+   silently vanishes from the dashboard (and everything else sharing its
+   fetch function) with no log trace, while the clock itself is unaffected.
+   Fixed by adding `ReadWritePaths=%h/git/mqtt` to the unit. Any future local
+   file write added to a function the dashboard calls needs the same
+   treatment — check `ReadWritePaths` covers it before assuming a restart or
+   code bug is the problem.
 
 ## Data source notes
 
@@ -119,10 +137,16 @@ it's sent.
   (delete a misplaced file with `curl -X DELETE "http://192.168.0.239/edit?path=/<name>.gif"`).
   Verify placement with `GET /list?dir=/ICONS`.
 - Pomo server change -> replace file, `systemctl --user restart awtrix-pomo`.
+- Dashboard server change -> edit `awtrix_dashboard.py` (or the functions it
+  calls in `awtrix_env.py`/`awtrix_weather.py`), then
+  `systemctl --user restart awtrix-dashboard` (it's a long-running process —
+  source edits don't take effect until restarted). If the change adds a new
+  local file write, update `ReadWritePaths` in `awtrix-dashboard.service` too
+  (see gotcha #8) and `daemon-reload` before restarting.
 - Set rotation timing -> web UI Settings `ATIME`; per-app via `duration`.
 - Crons:
   - `*/15 * * * * /usr/bin/python3 ~/git/mqtt/awtrix_weather.py >> ~/awtrix_cron.log 2>&1`
-  - `0 * * * * /usr/bin/python3 ~/git/mqtt/awtrix_env.py >> ~/awtrix_cron.log 2>&1`
+  - `*/30 * * * * /usr/bin/python3 ~/git/mqtt/awtrix_env.py >> ~/awtrix_cron.log 2>&1`
 
 ## How to add a new data app (recipe)
 
