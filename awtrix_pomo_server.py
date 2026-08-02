@@ -9,6 +9,7 @@ held notification + chime when the session ends.
 No CLI needed to trigger. Designed to run as a background service.
 """
 import json
+import logging
 import os
 import threading
 import time
@@ -16,6 +17,12 @@ from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
 import paho.mqtt.client as mqtt
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+LOG = logging.getLogger("awtrix.pomodoro")
 
 
 def load_env():
@@ -110,6 +117,7 @@ def bar_color(frac_elapsed):
 
 
 def run_session(total_sec, label, stick):
+    LOG.info("Starting %s session for %ss (pinned=%s)", label, total_sec, stick)
     end = time.time() + total_sec
     _cancel.clear()
     with _lock:
@@ -121,6 +129,7 @@ def run_session(total_sec, label, stick):
             clear_countdown(stick)
             with _lock:
                 _state.update(running=False, remaining=0, end=0)
+            LOG.info("Cancelled %s session", label)
             return
         if rem <= 0:
             break
@@ -142,6 +151,7 @@ def run_session(total_sec, label, stick):
     })
     with _lock:
         _state.update(running=False, remaining=0, end=0)
+    LOG.info("Completed %s session", label)
 
 
 def cancel_current():
@@ -266,5 +276,5 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    print(f"Pomodoro server on http://{HTTP_HOST}:{HTTP_PORT}")
+    LOG.info("Pomodoro server listening on http://%s:%s", HTTP_HOST, HTTP_PORT)
     ThreadingHTTPServer((HTTP_HOST, HTTP_PORT), Handler).serve_forever()

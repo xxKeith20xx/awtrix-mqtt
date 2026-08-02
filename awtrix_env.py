@@ -12,10 +12,11 @@ Push environmental data to Awtrix 3 as custom apps over MQTT:
   moon     - illumination % and phase, computed locally (no API)
 
 Each value is color-coded by severity so it's glanceable. Designed to run
-hourly from cron. Any single source failing only drops its own app; the
+every 30 minutes from cron. Any single source failing only drops its own app; the
 others still publish, and retained messages keep the last good value.
 """
 import json
+import logging
 import math
 import os
 import time
@@ -23,6 +24,12 @@ from datetime import datetime, timedelta, timezone
 
 import requests
 import paho.mqtt.client as mqtt
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+LOG = logging.getLogger("awtrix.env")
 
 
 def load_env():
@@ -234,7 +241,7 @@ def get_pollen():
             with open(POLLEN_CACHE) as f:
                 cached = json.load(f)
             if time.time() - cached.get("ts", 0) < POLLEN_CACHE_MAX_AGE:
-                print("Pollen: using cached result")
+                LOG.info("Pollen: using cached result")
                 return cached["data"]
         except (json.JSONDecodeError, KeyError):
             pass
@@ -405,7 +412,7 @@ def publish(apps):
     """apps: dict of app_name -> payload dict (None values skipped)."""
     apps = {k: v for k, v in apps.items() if v}
     if not apps:
-        print("Nothing to publish (all sources failed).")
+        LOG.warning("Nothing to publish (all sources failed)")
         return
     try:
         client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
@@ -419,18 +426,20 @@ def publish(apps):
                                         qos=1, retain=True))
         for info in infos:
             info.wait_for_publish()
+            if info.rc != mqtt.MQTT_ERR_SUCCESS:
+                LOG.error("MQTT publish failed with return code %s", info.rc)
         client.loop_stop()
         client.disconnect()
-        print("Published:", ", ".join(apps))
+        LOG.info("Published: %s", ", ".join(apps))
     except Exception as e:
-        print(f"MQTT Delivery failed: {e}")
+        LOG.exception("MQTT delivery failed: %s", e)
 
 
 def safe(fn, label):
     try:
         return fn()
     except Exception as e:
-        print(f"{label} skipped (non-fatal): {e}")
+        LOG.warning("%s skipped (non-fatal): %s", label, e)
         return None
 
 

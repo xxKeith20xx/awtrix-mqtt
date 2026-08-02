@@ -1,8 +1,15 @@
 import json
+import logging
 import os
 import re
 import requests
 import paho.mqtt.client as mqtt
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+LOG = logging.getLogger("awtrix.weather")
 
 
 def load_env():
@@ -203,14 +210,14 @@ def get_weather():
 
         return apps
     except Exception as e:
-        print(f"Error fetching weather data: {e}")
+        LOG.warning("Error fetching weather data: %s", e)
         return {}
 
 
 def publish_weather(apps):
     apps = {k: v for k, v in apps.items() if v}
     if not apps:
-        print("No weather data to publish.")
+        LOG.warning("No weather data to publish")
         return
     try:
         client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
@@ -224,11 +231,13 @@ def publish_weather(apps):
                                         qos=1, retain=True))
         for info in infos:
             info.wait_for_publish()
+            if info.rc != mqtt.MQTT_ERR_SUCCESS:
+                LOG.error("MQTT publish failed with return code %s", info.rc)
         client.loop_stop()
         client.disconnect()
-        print("Published:", ", ".join(apps))
+        LOG.info("Published: %s", ", ".join(apps))
     except Exception as e:
-        print(f"MQTT Delivery failed: {e}")
+        LOG.exception("MQTT delivery failed: %s", e)
 
 
 def check_icons():
@@ -240,7 +249,7 @@ def check_icons():
     weather push.
     """
     if "x" in DEVICE_IP:
-        print("Icon check skipped: set DEVICE_IP to the clock's address.")
+        LOG.info("Icon check skipped: set DEVICE_IP to the clock's address")
         return
     try:
         r = requests.get(f"http://{DEVICE_IP}/list",
@@ -252,12 +261,11 @@ def check_icons():
         names = {n.split("/")[-1] for n in names}
         missing = REQUIRED_ICONS - names
         if missing:
-            print(f"WARNING: icons missing from device ICONS folder: "
-                  f"{sorted(missing)}")
+            LOG.warning("Icons missing from device ICONS folder: %s", sorted(missing))
         else:
-            print("Icon check OK: all required icons present.")
+            LOG.info("Icon check OK: all required icons present")
     except Exception as e:
-        print(f"Icon check could not verify device (non-fatal): {e}")
+        LOG.warning("Icon check could not verify device (non-fatal): %s", e)
 
 
 if __name__ == "__main__":

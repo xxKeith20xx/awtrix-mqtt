@@ -12,6 +12,7 @@ caches it; the page polls /data on the same cadence. Designed to run as a
 background service and be exposed via a Cloudflare Tunnel.
 """
 import json
+import logging
 import os
 import re
 import threading
@@ -21,6 +22,12 @@ from urllib.parse import urlparse
 
 import awtrix_env as env
 import awtrix_weather as wx
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+LOG = logging.getLogger("awtrix.dashboard")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ICON_DIR = os.path.join(HERE, "icons")
@@ -35,7 +42,7 @@ def safe(fn, label):
     try:
         return fn()
     except Exception as e:
-        print(f"dashboard: {label} failed (non-fatal): {e}")
+        LOG.warning("%s failed (non-fatal): %s", label, e)
         return None
 
 
@@ -137,16 +144,21 @@ h2{font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;
 <div id=err></div>
 <script>
 function card(it){
- const a=`rgb(${it.color})`;
- const img=it.icon?`<img src="/icon/${encodeURIComponent(it.icon)}" alt="">`:'';
- return `<div class=card style="--accent:${a}">${img}
-  <div class=meta><div class=label>${it.label}</div>
-  <div class=value>${it.value||'—'}</div></div></div>`;
+ const el=document.createElement('div');el.className='card';
+ el.style.setProperty('--accent',`rgb(${it.color})`);
+ if(it.icon){const img=document.createElement('img');img.src='/icon/'+encodeURIComponent(it.icon);
+  img.alt='';el.appendChild(img)}
+ const meta=document.createElement('div');meta.className='meta';
+ const label=document.createElement('div');label.className='label';label.textContent=it.label;
+ const value=document.createElement('div');value.className='value';value.textContent=it.value||'—';
+ meta.append(label,value);el.appendChild(meta);return el;
 }
 function render(d){
  const root=document.getElementById('root');
- root.innerHTML=d.groups.map(g=>
-  `<h2>${g.name}</h2><div class=grid>${g.items.map(card).join('')}</div>`).join('');
+ root.replaceChildren();
+ for(const g of d.groups){const heading=document.createElement('h2');heading.textContent=g.name;
+  const grid=document.createElement('div');grid.className='grid';
+  for(const item of g.items)grid.appendChild(card(item));root.append(heading,grid)}
  const ago=Math.max(0,Math.round(Date.now()/1000-d.updated));
  document.getElementById('sub').textContent=
   d.updated?`updated ${ago}s ago · refreshes every 60s`:'no data yet';
@@ -199,5 +211,5 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     threading.Thread(target=refresher, daemon=True).start()
-    print(f"Dashboard on http://{HTTP_HOST}:{HTTP_PORT}")
+    LOG.info("Dashboard listening on http://%s:%s", HTTP_HOST, HTTP_PORT)
     ThreadingHTTPServer((HTTP_HOST, HTTP_PORT), Handler).serve_forever()

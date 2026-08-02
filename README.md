@@ -20,13 +20,13 @@ All display logic is handled host-side; the clock simply acts as a display matri
    * Maps current conditions (storms, snow, rain, clouds, sun) to specific custom icons stored on the clock.
    * Scheduled via `cron`.
 
-4. **Awtrix Dashboard (`awtrix_dashboard.py`):**
+3. **Awtrix Dashboard (`awtrix_dashboard.py`):**
    * Serves an always-on auto-refreshing web page (port `8089`) showing every metric the clock displays, grouped by Weather / Air Quality / Sun / Sky.
    * Reuses the exact data functions and 8x8 icons from the other scripts, so the page always matches the clock.
    * Refetches data every 60 seconds via a background thread; intended to be exposed through a Cloudflare Tunnel.
    * Runs as a user-level `systemd` service.
 
-3. **Environmental Metrics (`awtrix_env.py`):**
+4. **Environmental Metrics (`awtrix_env.py`):**
    * **AQI:** Fetches the US Air Quality Index (Open-Meteo).
    * **UV Index:** Fetches current UV exposure levels (Open-Meteo).
    * **Sun Events:** Displays next sunrise or sunset time.
@@ -43,7 +43,7 @@ All display logic is handled host-side; the clock simply acts as a display matri
 
 ## App Quick Reference
 
-All 16 apps rotate on the clock (3 seconds each). Display order is fixed with the `pos` field (Awtrix shows apps in receive order, not alphabetically). Colors shift by severity — green is calm, red/purple means pay attention.
+All 17 apps rotate on the clock (3 seconds each). Display order is fixed with the `pos` field (Awtrix shows apps in receive order, not alphabetically). Colors shift by severity — green is calm, red/purple means pay attention.
 
 ### Weather Apps (every 15 min)
 
@@ -56,7 +56,7 @@ All 16 apps rotate on the clock (3 seconds each). Display order is fixed with th
 | **humidity** | `62%` | Current relative humidity |
 | **dew** | `61°` | Dew point. Under 55° dry, 60s sticky, 70+ muggy |
 
-### Environmental Apps (hourly)
+### Environmental Apps (every 30 min)
 
 | App | Example | Meaning |
 |-----|---------|---------|
@@ -123,8 +123,8 @@ NWS_CONTACT=your_email@example.com
 
 ## Deployment & Running
 
-### 1. Cron Jobs (Hourly & Weather updates)
-Configure `cron` to run the weather updates every 15 minutes and environmental updates hourly:
+### 1. Cron Jobs (Environment & Weather updates)
+Configure `cron` to run the weather updates every 15 minutes and environmental updates every 30 minutes:
 
 ```bash
 $ crontab -e
@@ -135,8 +135,8 @@ Add the following lines (adjust paths if necessary):
 # Weather every 15 mins
 */15 * * * * /usr/bin/python3 /home/your_username/git/mqtt/awtrix_weather.py >> /home/your_username/awtrix_cron.log 2>&1
 
-# Environment hourly
-0 * * * * /usr/bin/python3 /home/your_username/git/mqtt/awtrix_env.py >> /home/your_username/awtrix_cron.log 2>&1
+# Environment every 30 minutes
+*/30 * * * * /usr/bin/python3 /home/your_username/git/mqtt/awtrix_env.py >> /home/your_username/awtrix_cron.log 2>&1
 ```
 
 ### 2. Pomodoro Server (Systemd User Service)
