@@ -4,7 +4,7 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
-ExecStart=/usr/bin/python3 -u %h/git/mqtt/awtrix_pomo_server.py
+ExecStart=%h/git/mqtt/.venv/bin/python -u %h/git/mqtt/awtrix_pomo_server.py
 Restart=on-failure
 RestartSec=3
 

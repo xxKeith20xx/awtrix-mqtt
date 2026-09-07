@@ -23,6 +23,8 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
 )
 LOG = logging.getLogger("awtrix.pomodoro")
+HERE = os.path.dirname(os.path.abspath(__file__))
+FAVICON_PATH = os.path.join(HERE, "pomo-favicon.svg")
 
 
 def load_env():
@@ -175,6 +177,8 @@ def start(minutes, label, stick=False):
 PAGE = """<!doctype html><html lang=en><head>
 <meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">
 <meta name=apple-mobile-web-app-capable content=yes>
+<meta name=theme-color content="#15151a">
+<link rel=icon href="/favicon.svg" type="image/svg+xml">
 <title>Pomodoro</title>
 <style>
 :root{color-scheme:dark}
@@ -248,6 +252,9 @@ class Handler(BaseHTTPRequestHandler):
         q = parse_qs(u.query)
         if u.path == "/" or u.path == "/index.html":
             self._send(200, PAGE.encode(), "text/html; charset=utf-8")
+        elif u.path == "/favicon.svg":
+            with open(FAVICON_PATH, "rb") as f:
+                self._send(200, f.read(), "image/svg+xml")
         elif u.path == "/start":
             mins = q.get("min", ["25"])[0]
             label = q.get("label", ["Focus"])[0][:12]
