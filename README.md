@@ -123,6 +123,16 @@ NWS_CONTACT=your_email@example.com
 
 ## Deployment & Running
 
+### 0. Python environment
+
+Create the project-local virtual environment and install the dependencies:
+
+```bash
+$ cd ~/git/mqtt
+$ python3 -m venv .venv
+$ .venv/bin/pip install -r requirements.txt
+```
+
 ### 1. Cron Jobs (Environment & Weather updates)
 Configure `cron` to run the weather updates every 15 minutes and environmental updates every 30 minutes:
 
@@ -133,10 +143,10 @@ $ crontab -e
 Add the following lines (adjust paths if necessary):
 ```cron
 # Weather every 15 mins
-*/15 * * * * /usr/bin/python3 /home/your_username/git/mqtt/awtrix_weather.py >> /home/your_username/awtrix_cron.log 2>&1
+*/15 * * * * /home/your_username/git/mqtt/.venv/bin/python /home/your_username/git/mqtt/awtrix_weather.py >> /home/your_username/awtrix_cron.log 2>&1
 
 # Environment every 30 minutes
-*/30 * * * * /usr/bin/python3 /home/your_username/git/mqtt/awtrix_env.py >> /home/your_username/awtrix_cron.log 2>&1
+*/30 * * * * /home/your_username/git/mqtt/.venv/bin/python /home/your_username/git/mqtt/awtrix_env.py >> /home/your_username/awtrix_cron.log 2>&1
 ```
 
 ### 2. Pomodoro Server (Systemd User Service)

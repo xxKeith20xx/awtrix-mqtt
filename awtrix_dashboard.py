@@ -31,6 +31,7 @@ LOG = logging.getLogger("awtrix.dashboard")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ICON_DIR = os.path.join(HERE, "icons")
+FAVICON_PATH = os.path.join(HERE, "dashboard-favicon.svg")
 
 HTTP_HOST = "127.0.0.1"  # localhost only; reach it via Cloudflare Tunnel
 HTTP_PORT = 8089
@@ -118,6 +119,8 @@ def refresher():
 PAGE = """<!doctype html><html lang=en><head>
 <meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">
 <meta name=apple-mobile-web-app-capable content=yes>
+<meta name=theme-color content="#0f0f14">
+<link rel=icon href="/favicon.svg" type="image/svg+xml">
 <title>Awtrix Dashboard</title>
 <style>
 :root{color-scheme:dark}
@@ -191,6 +194,9 @@ class Handler(BaseHTTPRequestHandler):
             with _cache_lock:
                 body = json.dumps(_cache).encode()
             self._send(200, body, "application/json")
+        elif path == "/favicon.svg":
+            with open(FAVICON_PATH, "rb") as f:
+                self._send(200, f.read(), "image/svg+xml")
         elif path.startswith("/icon/"):
             name = path[len("/icon/"):].rsplit(".", 1)[0]
             if not _ICON_RE.match(name):

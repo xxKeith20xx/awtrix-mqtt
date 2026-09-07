@@ -126,7 +126,7 @@ it's sent.
 ## Deploy / common operations
 
 - Edit a script -> copy to `~/git/mqtt/` -> run once manually to push now
-  (`python3 ~/git/mqtt/<script>.py`); cron handles it thereafter.
+  (`~/git/mqtt/.venv/bin/python ~/git/mqtt/<script>.py`); cron handles it thereafter.
 - New/changed icon -> edit `make_icons.py`, run it, upload the GIF(s) to the
   device `/ICONS`, then reference by filename in the script. Upload via the
   web UI Files browser, or scriptably with curl against the ESPAsyncWebServer
@@ -145,8 +145,8 @@ it's sent.
   (see gotcha #8) and `daemon-reload` before restarting.
 - Set rotation timing -> web UI Settings `ATIME`; per-app via `duration`.
 - Crons:
-  - `*/15 * * * * /usr/bin/python3 ~/git/mqtt/awtrix_weather.py >> ~/awtrix_cron.log 2>&1`
-  - `*/30 * * * * /usr/bin/python3 ~/git/mqtt/awtrix_env.py >> ~/awtrix_cron.log 2>&1`
+  - `*/15 * * * * ~/git/mqtt/.venv/bin/python ~/git/mqtt/awtrix_weather.py >> ~/awtrix_cron.log 2>&1`
+  - `*/30 * * * * ~/git/mqtt/.venv/bin/python ~/git/mqtt/awtrix_env.py >> ~/awtrix_cron.log 2>&1`
 
 ## How to add a new data app (recipe)
 
